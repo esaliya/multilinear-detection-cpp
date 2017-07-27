@@ -1,0 +1,15 @@
+/Applications/CLion.app/Contents/bin/cmake/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/Users/esaliya/sali/software/builds/build-mpich-3.2/bin/mpicxx -D CMAKE_C_COMPILER=/Users/esaliya/sali/software/builds/build-mpich-3.2/bin/mpicc -DBOOST_ROOT=/Users/esaliya/sali/software/boost_1_64_0 -DBOOST_INCLUDEDIR=/Users/esaliya/sali/software/builds/build-boost/include -DBOOST_LIBRARYDIR=/Users/esaliya/sali/software/builds/build-boost/lib -G "CodeBlocks - Unix Makefiles" /Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp
+CMake Warning at /Applications/CLion.app/Contents/bin/cmake/share/cmake-3.7/Modules/FindBoost.cmake:744 (message):
+  Imported targets not available for Boost version 106400
+Call Stack (most recent call first):
+  /Applications/CLion.app/Contents/bin/cmake/share/cmake-3.7/Modules/FindBoost.cmake:848 (_Boost_COMPONENT_DEPENDENCIES)
+  /Applications/CLion.app/Contents/bin/cmake/share/cmake-3.7/Modules/FindBoost.cmake:1435 (_Boost_MISSING_DEPENDENCIES)
+  CMakeLists.txt:6 (find_package)
+
+
+-- Boost version: 1.64.0
+-- Found the following Boost libraries:
+--   program_options
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/cmake-build-release

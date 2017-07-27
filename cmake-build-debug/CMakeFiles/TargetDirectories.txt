@@ -1,0 +1,4 @@
+/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/cmake-build-debug/CMakeFiles/main_test.dir
+/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/cmake-build-debug/CMakeFiles/main.dir
