@@ -11,14 +11,14 @@
 [Dd]ebug/
 [Rr]elease/
 x64/
-build/
 [Bb]in/
 [Oo]bj/
 out/
 target/
 .metadata/
 .idea/
-
+cmake-build-debug/
+cmake-build-release/
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
