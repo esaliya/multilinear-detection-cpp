@@ -1,1 +1,0 @@
-/Users/esaliya/sali/software/builds/build-mpich-3.2/bin/mpicxx    -O3 -std=c++11 -fopenmp -O3 -DNDEBUG -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/main_test.dir/main_test.cpp.o CMakeFiles/main_test.dir/test_map_class.cpp.o CMakeFiles/main_test.dir/map_constructor.cpp.o CMakeFiles/main_test.dir/polynomial.cpp.o  -o main_test 

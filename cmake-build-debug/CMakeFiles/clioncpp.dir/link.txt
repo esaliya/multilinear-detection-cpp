@@ -1,1 +1,0 @@
-/usr/local/Cellar/mpich/3.2_2/bin/mpicxx    -std=c++11 -fopenmp -g -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/clioncpp.dir/main.cpp.o  -o clioncpp 
