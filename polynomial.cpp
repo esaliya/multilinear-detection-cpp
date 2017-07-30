@@ -8,6 +8,8 @@
 #include <iostream>
 #include <algorithm>
 #include "polynomial.hpp"
+#include "polynomials.hpp"
+
 const std::shared_ptr<polynomial> polynomial::X(create_from_long(2L));
 const std::shared_ptr<polynomial> polynomial::ONE(create_from_long(1L));
 
