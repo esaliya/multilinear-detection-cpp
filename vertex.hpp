@@ -97,7 +97,6 @@ public:
       }
       opt_tbl.get()[I] = (short)poly;
     }
-
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;
