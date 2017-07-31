@@ -87,7 +87,7 @@ public:
     } else if (super_step > 0){
       int field_size = gf->get_field_size();
       int poly = 0;
-      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+      /*for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         int weight = (*uni_int_dist)(*rnd_engine);
         int product = gf->multiply(opt_tbl.get()[1], msg->get());
         // NOTE - let's not use this, see above
@@ -95,7 +95,7 @@ public:
         product = gf->multiply(weight, product);
         poly = gf->add(poly, product);
       }
-      opt_tbl.get()[I] = (short)poly;
+      opt_tbl.get()[I] = (short)poly;*/
     }
 
     // TODO - dummy comp - list recvd messages
