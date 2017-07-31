@@ -87,7 +87,7 @@ public:
     } else if (super_step > 0){
       int field_size = gf->get_field_size();
       int poly = 0;
-      /*for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         int weight = (*uni_int_dist)(*rnd_engine);
         int product = gf->multiply(opt_tbl.get()[1], msg->get());
         // NOTE - let's not use this, see above
@@ -95,7 +95,7 @@ public:
         product = gf->multiply(weight, product);
         poly = gf->add(poly, product);
       }
-      opt_tbl.get()[I] = (short)poly;*/
+      opt_tbl.get()[I] = (short)poly;
     }
 
     // TODO - dummy comp - list recvd messages
@@ -103,7 +103,7 @@ public:
 //    data.get()[0] = (short) label;
 //    msg->set_data_and_msg_size(data, 1);
 
-    /*if (super_step == 0){
+   /* if (super_step == 0){
       std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
       data.get()[0] = (short) label;
       msg->set_data_and_msg_size(data, 1);
@@ -132,9 +132,9 @@ public:
   void process_recvd(int super_step, int shift){
     for (int i = 0; i < recv_buffers->size(); ++i){
       std::shared_ptr<recv_vertex_buffer> b = (*recv_buffers)[i];
-//      std::shared_ptr<message> recvd_msg = (*recvd_msgs)[i];
-//      int recvd_msg_size = b->get_msg_size();
-//      recvd_msg->load(b->get_buffer(), shift+b->get_offset_factor()*recvd_msg_size, recvd_msg_size);
+      std::shared_ptr<message> recvd_msg = (*recvd_msgs)[i];
+      int recvd_msg_size = b->get_msg_size();
+      recvd_msg->load(b->get_buffer(), shift+b->get_offset_factor()*recvd_msg_size, recvd_msg_size);
     }
   }
 
