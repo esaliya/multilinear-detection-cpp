@@ -38,7 +38,7 @@ public:
   ~parallel_ops();
 
   void teardown_parallelism();
-  void set_parallel_decomposition(const char* file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
+  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
   void send_msgs(int msg_size);
   void recv_msgs();
 
@@ -56,6 +56,11 @@ private:
   MPI_Status *send_recv_reqs_status = nullptr;
   int total_reqs;
   int msg_size_to_recv;
+
+  /* performance counters */
+  const char *out_file = nullptr;
+  long *my_msg_counts = nullptr;
+  long *all_msg_counts = nullptr;
 
   std::map<int, std::shared_ptr<std::vector<int>>> *recvfrom_rank_to_msgcount_and_destined_labels = nullptr;
   std::map<int, std::shared_ptr<short>> *recvfrom_rank_to_recv_buffer = nullptr;

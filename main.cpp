@@ -42,6 +42,7 @@ int delta;
 double alpha;
 double epsilon;
 std::string input_file;
+std::string out_file;
 std::string partition_file;
 
 int two_raised_to_k;
@@ -90,7 +91,7 @@ int main(int argc, char **argv) {
   is_rank0 = (p_ops->get_world_proc_rank() == 0);
 
   std::vector<std::shared_ptr<vertex>> *vertices = nullptr;
-  p_ops->set_parallel_decomposition(input_file.c_str(), global_vertex_count, global_edge_count, vertices);
+  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(), global_vertex_count, global_edge_count, vertices);
   run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
@@ -115,6 +116,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_MMS, po::value<int>(), CMD_OPTION_DESCRIPTION_MMS)
       (CMD_OPTION_SHORT_PI, po::value<int>(), CMD_OPTION_DESCRIPTION_PI)
       (CMD_OPTION_SHORT_PIC, po::value<int>(), CMD_OPTION_DESCRIPTION_PIC)
+      (CMD_OPTION_SHORT_OUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_OUT)
       ;
 
   po::variables_map vm;
@@ -227,6 +229,14 @@ int parse_args(int argc, char **argv) {
   }else {
     if (is_rank0)
       std::cout<<"INFO: Parallel instance count not specified, assuming "<<parallel_instance_count<<std::endl;
+  }
+
+  if (vm.count(CMD_OPTION_SHORT_OUT)){
+    out_file = vm[CMD_OPTION_SHORT_OUT].as<std::string>();
+  }else {
+    if (is_rank0)
+      std::cout<<"ERROR: Output file not specified"<<std::endl;
+    return -1;
   }
 
   return 0;

@@ -50,4 +50,7 @@ extern const char *CMD_OPTION_DESCRIPTION_PI;
 
 extern const char *CMD_OPTION_SHORT_PIC;
 extern const char *CMD_OPTION_DESCRIPTION_PIC;
+
+extern const char *CMD_OPTION_SHORT_OUT;
+extern const char *CMD_OPTION_DESCRIPTION_OUT;
 #endif //CLIONCPP_CONSTANTS_H
