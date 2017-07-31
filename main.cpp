@@ -437,8 +437,13 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
       recv_time_ms += ms_t(end_ticks - start_ticks).count();
 
       start_ticks = hrc_t::now();
-      process_recvd_msgs(vertices, ss, thread_id);
-      end_ticks = hrc_t::now();
+      /* Assuming message size doesn't change with
+       * iterations we can do this process received once
+       * and be done with it */
+      if (ss < 2) {
+        process_recvd_msgs(vertices, ss, thread_id);
+        end_ticks = hrc_t::now();
+      }
       process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
     }
 
