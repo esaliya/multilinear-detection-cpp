@@ -500,11 +500,11 @@ void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
 }
 
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
-//#pragma omp parallel for
-  /*for (int i = 0; i < (*vertices).size(); ++i){
+#pragma omp parallel for
+  for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
     vertex->process_recvd(super_step, p_ops->BUFFER_OFFSET);
-  }*/
+  }
 }
 
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {

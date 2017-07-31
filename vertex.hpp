@@ -133,8 +133,8 @@ public:
     for (int i = 0; i < recv_buffers->size(); ++i){
       std::shared_ptr<recv_vertex_buffer> b = (*recv_buffers)[i];
       std::shared_ptr<message> recvd_msg = (*recvd_msgs)[i];
-      int recvd_msg_size = b->get_msg_size();
-      recvd_msg->load(b->get_buffer(), shift+b->get_offset_factor()*recvd_msg_size, recvd_msg_size);
+//      int recvd_msg_size = b->get_msg_size();
+//      recvd_msg->load(b->get_buffer(), shift+b->get_offset_factor()*recvd_msg_size, recvd_msg_size);
     }
   }
 
