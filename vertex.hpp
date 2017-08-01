@@ -144,13 +144,21 @@ public:
   }
 
   int prepare_send(int super_step, int shift){
+    // TODO - debug - let's put some cons values
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = shift + b->get_offset_factor() * msg->get_msg_size();
-      msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
-      // NOTE - let's not use this, see above
-//      msg->copy(b->get_buffer(), offset);
+      for (int i = 0; i < iter_bs; ++i){
+        b->get_buffer().get()[offset+i] = (short) i;
+      }
     }
+
+
+    /*for (const auto &kv : (*outrank_to_send_buffer)){
+      std::shared_ptr<vertex_buffer> b = kv.second;
+      int offset = shift + b->get_offset_factor() * msg->get_msg_size();
+      msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
+    }*/
     return msg->get_msg_size();
   }
 
