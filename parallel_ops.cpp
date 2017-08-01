@@ -29,12 +29,21 @@ parallel_ops::~parallel_ops() {
   send_recv_reqs_status = nullptr;
   delete [] send_recv_reqs;
   send_recv_reqs = nullptr;
-  delete recvfrom_rank_to_recv_buffer;
+  /*delete recvfrom_rank_to_recv_buffer;
   recvfrom_rank_to_recv_buffer = nullptr;
   delete sendto_rank_to_send_buffer;
-  sendto_rank_to_send_buffer = nullptr;
+  sendto_rank_to_send_buffer = nullptr;*/
   delete out_file;
   out_file = nullptr;
+
+  delete [] sdisplas;
+  sdisplas = nullptr;
+  delete [] rdisplas;
+  rdisplas = nullptr;
+  delete [] scounts;
+  scounts = nullptr;
+  delete [] rcounts;
+  rcounts = nullptr;
 }
 
 parallel_ops::parallel_ops(int world_proc_rank, int world_procs_count) :
@@ -440,21 +449,43 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
   // BEGIN ~~~~~~~~~~~~~~~~
   start_ms = std::chrono::high_resolution_clock::now();
-  recvfrom_rank_to_recv_buffer = new std::map<int, std::shared_ptr<short>>();
+  /* All-to-all-v modification */
+  rcounts = new int [world_procs_count];
+  rdisplas = new int [world_procs_count];
+
+  int total_recv_msg_count = 0;
+  for (const auto &kv : (*recvfrom_rank_to_msgcount_and_destined_labels)) {
+    int recvfrom_rank = kv.first;
+    std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
+    int msg_count = (*count_and_destined_vertex_labels)[0];
+    rcounts[recvfrom_rank] = msg_count;
+    total_recv_msg_count += msg_count;
+  }
+  rdisplas[0] = 0;
+  for (int i = 1; i < world_procs_count; ++i){
+    rdisplas[i] = rdisplas[i-1] + rcounts[i-1];
+  }
+  rbuff = std::shared_ptr<short>(new short[total_recv_msg_count*max_msg_size], std::default_delete<short[]>());
+
+
+//  recvfrom_rank_to_recv_buffer = new std::map<int, std::shared_ptr<short>>();
   for (const auto &kv : (*recvfrom_rank_to_msgcount_and_destined_labels)){
     int recvfrom_rank = kv.first;
     std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
     int msg_count = (*count_and_destined_vertex_labels)[0];
-    std::shared_ptr<short> b = std::shared_ptr<short>(
+
+    /*std::shared_ptr<short> b = std::shared_ptr<short>(
         new short [BUFFER_OFFSET + msg_count * max_msg_size](), std::default_delete<short[]>());
-    (*recvfrom_rank_to_recv_buffer)[recvfrom_rank] = b;
+    (*recvfrom_rank_to_recv_buffer)[recvfrom_rank] = b;*/
+
     int current_msg = 0;
     for (int i = 1; i < count_and_destined_vertex_labels->size(); ){
       int val = (*count_and_destined_vertex_labels)[i];
       if (val >= 0){
         std::shared_ptr<vertex> vertex = (*label_to_vertex)[val];
         vertex->recv_buffers->push_back(
-            std::make_shared<recv_vertex_buffer>(current_msg, b, recvfrom_rank, MSG_SIZE_OFFSET));
+            std::make_shared<recv_vertex_buffer>(current_msg, rdisplas[recvfrom_rank],
+                                                 recvfrom_rank, rbuff));
         vertex->recvd_msgs->push_back(std::make_shared<message>());
         ++current_msg;
         ++i;
@@ -465,7 +496,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
           val = (*count_and_destined_vertex_labels)[j];
           std::shared_ptr<vertex> vertex = (*label_to_vertex)[val];
           vertex->recv_buffers->push_back(
-              std::make_shared<recv_vertex_buffer>(current_msg, b, recvfrom_rank, MSG_SIZE_OFFSET));
+              std::make_shared<recv_vertex_buffer>(current_msg, rdisplas[recvfrom_rank],
+                                                   recvfrom_rank, rbuff));
           vertex->recvd_msgs->push_back(std::make_shared<message>());
         }
         i+=intended_vertex_count+1;
@@ -474,7 +506,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     }
   }
   end_ms = std::chrono::high_resolution_clock::now();
-  print_timing(start_ms, end_ms, "find_nbr: recvfrom_rank_to_recv_buffer");
+  print_timing(start_ms, end_ms, "find_nbr: all-to-all-v part of recvfrom_rank_to_recv_buffer");
 
 #ifdef LONG_DEBUG
   /* print recvfrom_rank_to_recv_buffer */
@@ -498,7 +530,25 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
   // BEGIN ================
   start_ms = std::chrono::high_resolution_clock::now();
-  sendto_rank_to_send_buffer = new std::map<int, std::shared_ptr<short>>();
+  /* All-to-all-v modification */
+  scounts = new int[world_procs_count];
+  sdisplas = new int[world_procs_count];
+
+  int total_send_msg_count = 0;
+  for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)) {
+    int sendto_rank = kv.first;
+    std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
+    int msg_count = (*count_and_destined_vertex_labels)[0];
+    scounts[sendto_rank] = msg_count;
+    total_send_msg_count += msg_count;
+  }
+  sdisplas[0] = 0;
+  for (int i = 1; i < world_procs_count; ++i){
+    sdisplas[i] = sdisplas[i-1] + scounts[i-1];
+  }
+  sbuff = std::shared_ptr<short>(new short[total_send_msg_count*max_msg_size], std::default_delete<short[]>());
+
+  /*sendto_rank_to_send_buffer = new std::map<int, std::shared_ptr<short>>();
   for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)){
     int sendto_rank = kv.first;
     std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
@@ -510,7 +560,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     b.get()[MSG_COUNT_OFFSET] = (short) (msg_count >> 16);
     b.get()[MSG_COUNT_OFFSET+1] = (short) (msg_count & 0xffff);
     (*sendto_rank_to_send_buffer)[sendto_rank] = b;
-  }
+  }*/
 
   std::map<int,int> *outrank_to_offset_factor = new std::map<int,int>();
   for (const std::shared_ptr<vertex> &vertex : (*vertices)){
@@ -522,12 +572,14 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
         ++((*outrank_to_offset_factor)[outrank]);
       }
       std::shared_ptr<vertex_buffer> vertex_send_buffer = (*vertex->outrank_to_send_buffer)[outrank];
-      vertex_send_buffer->set_offset_factor((*outrank_to_offset_factor)[outrank]);
-      vertex_send_buffer->set_buffer((*sendto_rank_to_send_buffer)[outrank]);
+      vertex_send_buffer->set_vertex_offset_factor((*outrank_to_offset_factor)[outrank]);
+      // TODO - let's use all-to-all-v style
+//      vertex_send_buffer->set_buffer((*sendto_rank_to_send_buffer)[outrank]);
+      vertex_send_buffer->set_buffer(sbuff, sdisplas[outrank]);
     }
   }
   end_ms = std::chrono::high_resolution_clock::now();
-  print_timing(start_ms, end_ms, "find_nbr: sendto_rank_to_send_buffer");
+  print_timing(start_ms, end_ms, "find_nbr: all-to-all-v part of sendto_rank_to_send_buffer");
 
 #ifdef LONG_DEBUG
   /* print sendto_rank_to_send_buffer */
@@ -556,7 +608,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 #endif
   // END ================
 
-  int num_sendto_ranks = (int) ((sendto_rank_to_send_buffer->find(world_proc_rank) != sendto_rank_to_send_buffer->end())
+  /*int num_sendto_ranks = (int) ((sendto_rank_to_send_buffer->find(world_proc_rank) != sendto_rank_to_send_buffer->end())
                            ? sendto_rank_to_send_buffer->size()-1
                            : sendto_rank_to_send_buffer->size());
   int num_recvfrom_ranks = (int) ((recvfrom_rank_to_recv_buffer->find(world_proc_rank) != recvfrom_rank_to_recv_buffer->end())
@@ -565,7 +617,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   recv_req_offset = num_sendto_ranks;
   total_reqs = num_sendto_ranks+num_recvfrom_ranks;
   send_recv_reqs = new MPI_Request[total_reqs]();
-  send_recv_reqs_status = new MPI_Status[total_reqs]();
+  send_recv_reqs_status = new MPI_Status[total_reqs]();*/
 
   delete outrank_to_offset_factor;
   delete sendto_rank_to_msgcount_and_destined_labels;
@@ -662,7 +714,7 @@ std::string parallel_ops::mpi_gather_string(std::string &str) {
 }
 
 void parallel_ops::send_msgs(int msg_size) {
-  msg_size_to_recv = msg_size;
+  /*msg_size_to_recv = msg_size;
   int req_count = 0;
   for (const auto &kv : (*sendto_rank_to_send_buffer)){
     int sendto_rank = kv.first;
@@ -682,11 +734,11 @@ void parallel_ops::send_msgs(int msg_size) {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, world_proc_rank, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
       ++req_count;
     }
-  }
+  }*/
 }
 
 void parallel_ops::recv_msgs() {
-  int req_count = 0;
+  /*int req_count = 0;
   for (const auto &kv : (*recvfrom_rank_to_recv_buffer)){
     int recvfrom_rank = kv.first;
     std::shared_ptr<short> buffer = kv.second;
@@ -699,7 +751,7 @@ void parallel_ops::recv_msgs() {
     }
   }
 
-  MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
+  MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);*/
 }
 
 int parallel_ops::read_int(long idx, char *f) {
@@ -710,7 +762,7 @@ int parallel_ops::read_int(long idx, char *f) {
 
 }
 void parallel_ops::send_recv_msgs(int msg_size) {
-  for (int i = 0; i < world_procs_count; ++i){
+  /*for (int i = 0; i < world_procs_count; ++i){
     for (int j = 0; j < world_procs_count; ++j){
       if (world_proc_rank == i) {
         if (sendto_rank_to_send_buffer->find(j) != sendto_rank_to_send_buffer->end()) {
@@ -747,11 +799,11 @@ void parallel_ops::send_recv_msgs(int msg_size) {
     }
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);*/
 }
 
 void parallel_ops::send_recv_msgs_async(int msg_size) {
-  int req_count = 0;
+  /*int req_count = 0;
   for (int i = 0; i < world_procs_count; ++i){
     for (int j = 0; j < world_procs_count; ++j){
       if (world_proc_rank == i) {
@@ -793,6 +845,20 @@ void parallel_ops::send_recv_msgs_async(int msg_size) {
 
   assert(total_reqs == req_count);
   MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(MPI_COMM_WORLD);*/
 
+}
+
+void parallel_ops::update_counts_and_displas(int msg_size) {
+  for (int i = 0; i < world_procs_count; ++i){
+    scounts[i] *= msg_size;
+    rcounts[i] *= msg_size;
+    sdisplas[i] *= msg_size;
+    rdisplas[i] *= msg_size;
+  }
+
+}
+
+void parallel_ops::all_to_all_v() {
+  MPI_Alltoallv(sbuff.get(), scounts, sdisplas, MPI_SHORT, rbuff.get(), rcounts, rdisplas, MPI_SHORT, MPI_COMM_WORLD);
 }

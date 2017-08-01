@@ -119,27 +119,26 @@ public:
     }*/
   }
 
-  int prepare_send(int super_step, int shift){
+  int prepare_send(int super_step){
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
-      int offset = shift + b->get_offset_factor() * msg->get_msg_size();
       // TODO - debug - let's copy 4 dummy values
 //      msg->copy(b->get_buffer(), offset, data_idx);
       for (int i = 0; i < msg->get_msg_size(); ++i){
-        b->get_buffer().get()[offset+i] = (short) i;
+        b->get_buffer().get()[(b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size()+i] = (short) i;
       }
-      // NOTE - let's not use this, see above
-//      msg->copy(b->get_buffer(), offset);
     }
     return msg->get_msg_size();
   }
 
-  void process_recvd(int super_step, int shift){
+  void process_recvd(int super_step){
     for (int i = 0; i < recv_buffers->size(); ++i){
       std::shared_ptr<recv_vertex_buffer> b = (*recv_buffers)[i];
       std::shared_ptr<message> recvd_msg = (*recvd_msgs)[i];
-      int recvd_msg_size = b->get_msg_size();
-      recvd_msg->load(b->get_buffer(), shift+b->get_offset_factor()*recvd_msg_size, recvd_msg_size);
+      // Assume received msg size is as same as my send msg size
+      recvd_msg->load(b->get_buffer(),
+                      (b->get_vertex_offset_factor()+b->get_buffer_offset_factor())*msg->get_msg_size(),
+                      msg->get_msg_size());
     }
   }
 

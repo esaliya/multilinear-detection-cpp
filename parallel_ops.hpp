@@ -19,7 +19,7 @@
 class parallel_ops{
 public:
   // to store msg count and msg size -- note msg count is stored as two shorts
-  const int BUFFER_OFFSET = 3;
+//  const int BUFFER_OFFSET = 3;
   // Maximum message size sent by a vertex. To be set later correctly.
   int max_msg_size = 500;
   int thread_count = 1;
@@ -43,12 +43,14 @@ public:
   void recv_msgs();
   void send_recv_msgs(int msg_size);
   void send_recv_msgs_async(int msg_size);
+  void update_counts_and_displas(int msg_size);
+  void all_to_all_v();
 
   static parallel_ops * initialize(int *argc, char ***argv);
 
 private:
-  const int MSG_COUNT_OFFSET = 0;
-  const int MSG_SIZE_OFFSET = 2;
+//  const int MSG_COUNT_OFFSET = 0;
+//  const int MSG_SIZE_OFFSET = 2;
 
   int world_proc_rank;
   int world_procs_count;
@@ -59,14 +61,22 @@ private:
   int total_reqs;
   int msg_size_to_recv;
 
+  /* All-to-all-v buffers */
+  int *sdisplas = nullptr;
+  int *rdisplas = nullptr;
+  int *scounts = nullptr;
+  int *rcounts = nullptr;
+  std::shared_ptr<short> sbuff = nullptr;
+  std::shared_ptr<short> rbuff = nullptr;
+
   /* performance counters */
   const char *out_file = nullptr;
   long *my_msg_counts = nullptr;
   long *all_msg_counts = nullptr;
 
   std::map<int, std::shared_ptr<std::vector<int>>> *recvfrom_rank_to_msgcount_and_destined_labels = nullptr;
-  std::map<int, std::shared_ptr<short>> *recvfrom_rank_to_recv_buffer = nullptr;
-  std::map<int, std::shared_ptr<short>> *sendto_rank_to_send_buffer = nullptr;
+//  std::map<int, std::shared_ptr<short>> *recvfrom_rank_to_recv_buffer = nullptr;
+//  std::map<int, std::shared_ptr<short>> *sendto_rank_to_send_buffer = nullptr;
 
   parallel_ops(int world_proc_rank, int world_procs_count);
 

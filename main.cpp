@@ -267,6 +267,9 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   bool found_path = false;
   init_comp(vertices);
 
+  // Call parallel ops update count and displas
+  p_ops->update_counts_and_displas(4);
+
   // TODO - debug - set external_loops to 1
   external_loops = 1;
   for(int i = 0; i < external_loops; ++i){
@@ -502,16 +505,14 @@ void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super
 }
 
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
-  // TODO - using scatter loop, so let's use send_recv_msgs()
-  p_ops->send_recv_msgs((*vertices)[0]->msg-> get_msg_size());
-//  p_ops->recv_msgs();
+  p_ops->all_to_all_v();
 }
 
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
 #pragma omp parallel for
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
-    vertex->process_recvd(super_step, p_ops->BUFFER_OFFSET);
+    vertex->process_recvd(super_step);
   }
 }
 
@@ -519,11 +520,8 @@ void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
 #pragma omp parallel for
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
-    vertex->prepare_send(super_step, p_ops->BUFFER_OFFSET);
+    vertex->prepare_send(super_step);
   }
-
-  // TODO - using ring scatter, so let's comment this
-//  p_ops->send_msgs((*vertices)[0]->msg-> get_msg_size());
 }
 
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id) {
