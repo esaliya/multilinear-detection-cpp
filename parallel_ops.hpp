@@ -41,6 +41,7 @@ public:
   void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
   void send_msgs(int msg_size);
   void recv_msgs();
+  void send_recv_msgs(int msg_size);
 
   static parallel_ops * initialize(int *argc, char ***argv);
 

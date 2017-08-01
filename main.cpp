@@ -502,7 +502,9 @@ void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super
 }
 
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
-  p_ops->recv_msgs();
+  // TODO - using scatter loop, so let's use send_recv_msgs()
+  p_ops->send_recv_msgs((*vertices)[0]->msg-> get_msg_size());
+//  p_ops->recv_msgs();
 }
 
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
@@ -520,7 +522,8 @@ void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
     vertex->prepare_send(super_step, p_ops->BUFFER_OFFSET);
   }
 
-  p_ops->send_msgs((*vertices)[0]->msg-> get_msg_size());
+  // TODO - using ring scatter, so let's comment this
+//  p_ops->send_msgs((*vertices)[0]->msg-> get_msg_size());
 }
 
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id) {
