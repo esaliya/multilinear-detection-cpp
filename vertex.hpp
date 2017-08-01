@@ -147,13 +147,13 @@ public:
     // TODO - debug - let's put some cons values
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
-      int offset = shift + b->get_offset_factor() * 1;
-      for (int i = 0; i < 1; ++i){
+      int offset = shift + b->get_offset_factor() * 2;
+      for (int i = 0; i < 2; ++i){
         b->get_buffer().get()[offset+i] = (short) i;
       }
     }
 
-    return 1;
+    return 2;
 
 
     /*for (const auto &kv : (*outrank_to_send_buffer)){
