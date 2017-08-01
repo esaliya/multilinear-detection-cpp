@@ -450,7 +450,6 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
 
   for (int ss = 0; ss < worker_steps; ++ss){
     if (ss > 0){
-
       // TODO - debug
       MPI_Barrier(MPI_COMM_WORLD);
       if (is_rank0){

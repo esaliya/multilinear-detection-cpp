@@ -94,15 +94,17 @@ public:
     if (super_step == 0){
       reset(iter, random_assignments);
     } else if (super_step > 0){
-      int field_size = gf->get_field_size();
+      // TODO - debug - do nothing
+
+//      int field_size = gf->get_field_size();
       // TODO - debug - remove poly array
 //      reset_super_step();
 
       // TODO - debug - let's if it's computation that's getting stuck
       // TODO - to do that, let's make computations do only 1 iter
 //      for (int i = 0; i < iter_bs; ++i) {
-      for (int i = 0; i < 1; ++i) {
-        int poly = 0;
+//      for (int i = 0; i < 1; ++i) {
+//        int poly = 0;
         // TODO - let's avoid computation completely
         /*for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
@@ -110,8 +112,8 @@ public:
           product = gf->multiply(weight, product);
           poly = gf->add(poly, product);
         }*/
-        opt_tbl.get()[I*iter_bs+i] = (short) poly;
-      }
+//        opt_tbl.get()[I*iter_bs+i] = (short) poly;
+//      }
 
       // TODO - debug - remove poly array
 //      for (int i = 0; i < iter_bs; ++i) {
