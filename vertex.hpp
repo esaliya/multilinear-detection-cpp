@@ -85,7 +85,7 @@ public:
     if (super_step == 0){
       reset(iter, random_assignments);
     } else if (super_step > 0){
-      int field_size = gf->get_field_size();
+      /*int field_size = gf->get_field_size();
       int poly = 0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         int weight = (*uni_int_dist)(*rnd_engine);
@@ -95,7 +95,7 @@ public:
         product = gf->multiply(weight, product);
         poly = gf->add(poly, product);
       }
-      opt_tbl.get()[I] = (short)poly;
+      opt_tbl.get()[I] = (short)poly;*/
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
@@ -123,7 +123,11 @@ public:
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = shift + b->get_offset_factor() * msg->get_msg_size();
-      msg->copy(b->get_buffer(), offset, data_idx);
+      // TODO - debug - let's copy 4 dummy values
+//      msg->copy(b->get_buffer(), offset, data_idx);
+      for (int i = 0; i < msg->get_msg_size(); ++i){
+        b->get_buffer().get()[offset+i] = (short) i;
+      }
       // NOTE - let's not use this, see above
 //      msg->copy(b->get_buffer(), offset);
     }
@@ -165,7 +169,9 @@ public:
     int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
     opt_tbl.get()[1] = (short) eigen_val;
 
-    msg->set_data_and_msg_size(opt_tbl, 1);
+    // TODO - debug - let's set size to 4
+//    msg->set_data_and_msg_size(opt_tbl, 1);
+    msg->set_data_and_msg_size(opt_tbl, 4);
     // NOTE - let's not use this, see above
 //    msg->set_data_and_msg_size(opt_tbl, (k+1));
   }
