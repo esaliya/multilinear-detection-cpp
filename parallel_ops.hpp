@@ -42,6 +42,7 @@ public:
   void send_msgs(int msg_size);
   void recv_msgs();
   void send_recv_msgs(int msg_size);
+  void send_recv_msgs_async(int msg_size);
 
   static parallel_ops * initialize(int *argc, char ***argv);
 

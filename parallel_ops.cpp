@@ -709,8 +709,48 @@ int parallel_ops::read_int(long idx, char *f) {
          + ((unsigned char)(f[idx*4+0]<<24));
 
 }
-
 void parallel_ops::send_recv_msgs(int msg_size) {
+  for (int i = 0; i < world_procs_count; ++i){
+    for (int j = 0; j < world_procs_count; ++j){
+      if (world_proc_rank == i) {
+        if (sendto_rank_to_send_buffer->find(j) != sendto_rank_to_send_buffer->end()) {
+          // rank i sending to rank j
+          std::shared_ptr<short> buffer = (*sendto_rank_to_send_buffer)[j];
+          buffer.get()[MSG_SIZE_OFFSET] = (short) msg_size;
+          int msg_count = ((buffer.get()[MSG_COUNT_OFFSET]) << 16 | (buffer.get()[MSG_COUNT_OFFSET + 1] & 0xffff));
+          // This is different from buffer size, which is
+          // BUFFER_OFFSET + msg_count * max_msg_size
+          // Notice here we use msg_size instead of max_msg_size
+          int buffer_content_size = BUFFER_OFFSET + msg_count * msg_size;
+
+          if (world_proc_rank == j) {
+            // local copy
+            std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
+            std::copy(buffer.get(), buffer.get() + buffer_content_size, b.get());
+          } else {
+            MPI_Send(buffer.get(), buffer_content_size, MPI_SHORT, j, i, MPI_COMM_WORLD);
+          }
+        }
+      }
+      else if (world_proc_rank == j)
+      {
+        if (recvfrom_rank_to_recv_buffer->find(i) != recvfrom_rank_to_recv_buffer->end()) {
+          // rank j receiving from rank i
+          std::shared_ptr<short> buffer = (*recvfrom_rank_to_recv_buffer)[i];
+          int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[i])[0];
+          if (i != j) {
+            MPI_Recv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size,
+                     MPI_SHORT, i, i, MPI_COMM_WORLD, &send_recv_reqs_status[i]);
+          }
+        }
+      }
+    }
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void parallel_ops::send_recv_msgs_async(int msg_size) {
   int req_count = 0;
   for (int i = 0; i < world_procs_count; ++i){
     for (int j = 0; j < world_procs_count; ++j){
