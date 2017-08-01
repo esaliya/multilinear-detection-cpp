@@ -57,7 +57,7 @@ int thread_count = 1;
 int max_msg_size = 500;
 int parallel_instance_id = 0;
 int parallel_instance_count = 1;
-int iter_chunk = 1;
+int iter_bs = 1;
 
 bool is_rank0 = false;
 
@@ -117,7 +117,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_MMS, po::value<int>(), CMD_OPTION_DESCRIPTION_MMS)
       (CMD_OPTION_SHORT_PI, po::value<int>(), CMD_OPTION_DESCRIPTION_PI)
       (CMD_OPTION_SHORT_PIC, po::value<int>(), CMD_OPTION_DESCRIPTION_PIC)
-      (CMD_OPTION_SHORT_IC, po::value<int>(), CMD_OPTION_DESCRIPTION_IC)
+      (CMD_OPTION_SHORT_IBS, po::value<int>(), CMD_OPTION_DESCRIPTION_IBS)
       (CMD_OPTION_SHORT_OUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_OUT)
       ;
 
@@ -241,14 +241,14 @@ int parse_args(int argc, char **argv) {
     return -1;
   }
 
-  if(vm.count(CMD_OPTION_SHORT_IC)){
-    iter_chunk = vm[CMD_OPTION_SHORT_IC].as<int>();
+  if(vm.count(CMD_OPTION_SHORT_IBS)){
+    iter_bs = vm[CMD_OPTION_SHORT_IBS].as<int>();
   }else {
-    iter_chunk = 1;
+    iter_bs = 1;
     if (is_rank0)
-      std::cout<<"INFO: Chunked iteration count not specified, assuming "<<iter_chunk<<std::endl;
+      std::cout<<"INFO: Iteration block size not specified, assuming "<<iter_bs<<std::endl;
   }
-  max_msg_size = max_msg_size * iter_chunk;
+  max_msg_size = max_msg_size * iter_bs;
   if(is_rank0){
     std::cout<<"INFO: Scaled max message size by iteration chunk size "<<max_msg_size<<std::endl;
   }
@@ -352,7 +352,10 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   if(is_rank0) std::cout<<print_str;
 
   ticks_t iterations_ticks = hrc_t::now();
-  for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_chunk){
+  // Assume iterations_per_parallel_instance is a multiple of iter_bs
+  assert(iterations_per_parallel_instance % iter_bs == 0);
+
+  for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
     int final_iter = iter+(parallel_instance_id*iterations_per_parallel_instance);
@@ -365,7 +368,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
 
     print_str = gap;
     print_str.append("  INFO: Iterations range [[").append(std::to_string(iter+1))
-        .append("-").append(std::to_string(iter+iter_chunk)).append("]")
+        .append("-").append(std::to_string(iter+iter_bs)).append("]")
         .append("/").append(std::to_string(iterations_per_parallel_instance))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
     if (is_rank0) std::cout<<print_str;
@@ -429,7 +432,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    v->init(k, r, gf);
+    v->init(k, r, gf, iter_bs);
   }
 }
 

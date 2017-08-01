@@ -14,8 +14,9 @@ public:
   message(){}
   ~message(){}
 
-  void copy(std::shared_ptr<short> buffer, int offset, int data_idx){
-    buffer.get()[offset] = data.get()[data_idx];
+  void copy(std::shared_ptr<short> buffer, int offset, int data_idx, int data_length){
+    // data is such that all data_idx elements of data_length are nearby elements
+    std::copy(data.get()+data_idx, data.get()+data_idx+data_length, &buffer.get()[offset]);
   }
   // NOTE - let's not use this method, see above
   /*void copy(std::shared_ptr<short> buffer, int offset){
@@ -37,13 +38,9 @@ public:
     this->buffer = buffer;
   }*/
 
-  short get(){
-    return buffer.get()[read_offset];
-  }
-  // NOTE - let's not use this, see above
-  /*short get(int i){
+  short get(int i){
     return buffer.get()[read_offset+i];
-  }*/
+  }
 
   int get_msg_size(){
     return msg_size;

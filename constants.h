@@ -54,6 +54,6 @@ extern const char *CMD_OPTION_DESCRIPTION_PIC;
 extern const char *CMD_OPTION_SHORT_OUT;
 extern const char *CMD_OPTION_DESCRIPTION_OUT;
 
-extern const char *CMD_OPTION_SHORT_IC;
-extern const char *CMD_OPTION_DESCRIPTION_IC;
+extern const char *CMD_OPTION_SHORT_IBS;
+extern const char *CMD_OPTION_DESCRIPTION_IBS;
 #endif //CLIONCPP_CONSTANTS_H
