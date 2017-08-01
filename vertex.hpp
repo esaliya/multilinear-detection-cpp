@@ -68,8 +68,9 @@ public:
     uni_int_dist = nullptr;
     delete [] rnd_engine;
     rnd_engine = nullptr;
-    delete [] poly_arr;
-    poly_arr = nullptr;
+    // TODO - debug - remove poly array
+//    delete [] poly_arr;
+//    poly_arr = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
@@ -94,19 +95,23 @@ public:
       reset(iter, random_assignments);
     } else if (super_step > 0){
       int field_size = gf->get_field_size();
-      reset_super_step();
-      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
-        for (int i = 0; i < iter_bs; ++i) {
+      // TODO - debug - remove poly array
+//      reset_super_step();
+      for (int i = 0; i < iter_bs; ++i) {
+        int poly = 0;
+        for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
-          int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
+          int product = gf->multiply(opt_tbl.get()[1 * iter_bs + i], msg->get(i));
           product = gf->multiply(weight, product);
-          poly_arr[i] = gf->add(poly_arr[i], product);
+          poly = gf->add(poly, product);
         }
+        opt_tbl.get()[I*iter_bs+i] = (short) poly;
       }
 
-      for (int i = 0; i < iter_bs; ++i) {
-        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
-      }
+      // TODO - debug - remove poly array
+//      for (int i = 0; i < iter_bs; ++i) {
+//        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
+//      }
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
@@ -160,7 +165,8 @@ public:
     // other indices follow the same rule
     opt_tbl_length = (k+1)*iter_bs;
     opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
-    poly_arr = new int[iter_bs];
+    // TODO - debug - remove poly array
+//    poly_arr = new int[iter_bs];
   }
 
   void reset(int iter, std::shared_ptr<std::map<int,int>> random_assignments){
@@ -215,12 +221,13 @@ private:
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;
 
-  int *poly_arr = nullptr;
+  // TODO - debug - remove poly array
+  /*int *poly_arr = nullptr;
   void reset_super_step(){
     for (int i = 0; i < iter_bs; ++i){
       poly_arr[i] = 0;
     }
-  }
+  }*/
 };
 
 
