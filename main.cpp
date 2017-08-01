@@ -57,6 +57,7 @@ int thread_count = 1;
 int max_msg_size = 500;
 int parallel_instance_id = 0;
 int parallel_instance_count = 1;
+int iter_chunk = 1;
 
 bool is_rank0 = false;
 
@@ -116,6 +117,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_MMS, po::value<int>(), CMD_OPTION_DESCRIPTION_MMS)
       (CMD_OPTION_SHORT_PI, po::value<int>(), CMD_OPTION_DESCRIPTION_PI)
       (CMD_OPTION_SHORT_PIC, po::value<int>(), CMD_OPTION_DESCRIPTION_PIC)
+      (CMD_OPTION_SHORT_IC, po::value<int>(), CMD_OPTION_DESCRIPTION_IC)
       (CMD_OPTION_SHORT_OUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_OUT)
       ;
 
@@ -239,6 +241,19 @@ int parse_args(int argc, char **argv) {
     return -1;
   }
 
+  if(vm.count(CMD_OPTION_SHORT_IC)){
+    iter_chunk = vm[CMD_OPTION_SHORT_IC].as<int>();
+  }else {
+    iter_chunk = 1;
+    if (is_rank0)
+      std::cout<<"INFO: Chunked iteration count not specified, assuming "<<iter_chunk<<std::endl;
+  }
+  max_msg_size = max_msg_size * iter_chunk;
+  if(is_rank0){
+    std::cout<<"INFO: Scaled max message size by iteration chunk size "<<max_msg_size<<std::endl;
+  }
+
+
   return 0;
 }
 
@@ -337,19 +352,20 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   if(is_rank0) std::cout<<print_str;
 
   ticks_t iterations_ticks = hrc_t::now();
-  for (int iter = 0; iter < iterations_per_parallel_instance; ++iter){
+  for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_chunk){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
     int final_iter = iter+(parallel_instance_id*iterations_per_parallel_instance);
     int thread_id = 0;
-    // TODO - add threads here (update: no need, we do threads later)
+    // TODO - add threads here (update: no need, we already do threads later in the code)
     // The difference if I did it here would be to have LRT threads
     // per iteration.
-    run_super_steps(vertices, final_iter+1, thread_id);
+    run_super_steps(vertices, final_iter, thread_id);
     running_ticks = hrc_t::now();
 
     print_str = gap;
-    print_str.append("  INFO: Iteration [").append(std::to_string(iter+1))
+    print_str.append("  INFO: Iterations range [[").append(std::to_string(iter+1))
+        .append("-").append(std::to_string(iter+iter_chunk)).append("]")
         .append("/").append(std::to_string(iterations_per_parallel_instance))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
     if (is_rank0) std::cout<<print_str;
@@ -440,8 +456,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
       /* Assuming message size doesn't change with
        * iterations and super steps we can do this process received once
        * and be done with it */
-      // Note, iter starts from 1.
-      if (iter == 1 && ss < 2) {
+      if (iter == 0 && ss < 2) {
         process_recvd_msgs(vertices, ss, thread_id);
       }
       end_ticks = hrc_t::now();
@@ -466,7 +481,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
 
-  gap.append("-- Iter ").append(std::to_string(iter));
+  gap.append("-- Iter ").append(std::to_string(iter+1));
 
   std::string print_str = gap;
   print_str.append(" comp:");
