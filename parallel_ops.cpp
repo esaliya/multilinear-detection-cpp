@@ -711,6 +711,7 @@ int parallel_ops::read_int(long idx, char *f) {
 }
 
 void parallel_ops::send_recv_msgs(int msg_size) {
+  int req_count = 0;
   for (int i = 0; i < world_procs_count; ++i){
     for (int j = 0; j < world_procs_count; ++j){
       if (world_proc_rank == i) {
@@ -729,7 +730,8 @@ void parallel_ops::send_recv_msgs(int msg_size) {
             std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
             std::copy(buffer.get(), buffer.get() + buffer_content_size, b.get());
           } else {
-            MPI_Send(buffer.get(), buffer_content_size, MPI_SHORT, j, i, MPI_COMM_WORLD);
+            MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, j, i, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
+            ++req_count;
           }
         }
       }
@@ -740,14 +742,17 @@ void parallel_ops::send_recv_msgs(int msg_size) {
           std::shared_ptr<short> buffer = (*recvfrom_rank_to_recv_buffer)[i];
           int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[i])[0];
           if (i != j) {
-            MPI_Recv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size,
-                      MPI_SHORT, i, i, MPI_COMM_WORLD, &send_recv_reqs_status[i]);
+            MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size,
+                      MPI_SHORT, i, i, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
+            ++req_count;
           }
         }
       }
     }
   }
 
+  assert(total_reqs == req_count);
+  MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
   MPI_Barrier(MPI_COMM_WORLD);
 
 }
