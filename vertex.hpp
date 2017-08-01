@@ -90,6 +90,8 @@ public:
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         int weight = (*uni_int_dist)(*rnd_engine);
         int product = gf->multiply(opt_tbl.get()[1], msg->get());
+        // NOTE - let's not use this, see above
+//        int product = gf->multiply(opt_tbl.get()[1], msg->get(I-1));
         product = gf->multiply(weight, product);
         poly = gf->add(poly, product);
       }
@@ -121,12 +123,7 @@ public:
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = shift + b->get_offset_factor() * msg->get_msg_size();
-      // TODO - debug - let's copy some dummy values
-//      msg->copy(b->get_buffer(), offset, data_idx);
-      for (int i = 0; i < msg->get_msg_size(); ++i){
-        b->get_buffer().get()[offset+i] = (short) i;
-      }
-
+      msg->copy(b->get_buffer(), offset, data_idx);
       // NOTE - let's not use this, see above
 //      msg->copy(b->get_buffer(), offset);
     }
@@ -168,9 +165,7 @@ public:
     int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
     opt_tbl.get()[1] = (short) eigen_val;
 
-    // TODO - debug - set msg size to 7
-//    msg->set_data_and_msg_size(opt_tbl, 1);
-    msg->set_data_and_msg_size(opt_tbl, 7);
+    msg->set_data_and_msg_size(opt_tbl, 1);
     // NOTE - let's not use this, see above
 //    msg->set_data_and_msg_size(opt_tbl, (k+1));
   }
