@@ -588,7 +588,7 @@ void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
 
   // TODO - debug - let's set message size to 1
 //  p_ops->send_msgs((*vertices)[0]->msg-> get_msg_size());
-  p_ops->send_msgs(2);
+  p_ops->send_msgs(4);
 }
 
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id) {
