@@ -89,9 +89,6 @@ public:
   int data_idx = 0;
 
   void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
-    // TODO - debug - print str
-    std::string gap = "      ";
-
     int I = super_step+1;
     data_idx = I;
     if (super_step == 0){
@@ -121,6 +118,7 @@ public:
 //        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
 //      }
     }
+
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;

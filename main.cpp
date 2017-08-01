@@ -466,10 +466,22 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
       process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
     }
 
+    // TODO - debug
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (is_rank0){
+      std::cout<<gap<<"  ++came before compute for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+    }
+
     start_ticks = hrc_t::now();
     compute(iter, vertices, ss, thread_id);
     end_ticks = hrc_t::now();
     comp_time_ms += ms_t(end_ticks - start_ticks).count();
+
+    // TODO - debug
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (is_rank0){
+      std::cout<<gap<<"  ++came after compute for iters[ "<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+    }
 
     if (ss< worker_steps - 1){
       start_ticks = hrc_t::now();
