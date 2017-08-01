@@ -169,9 +169,9 @@ public:
     int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
     opt_tbl.get()[1] = (short) eigen_val;
 
-    // TODO - debug - set msg size to 4
+    // TODO - debug - set msg size to 7
 //    msg->set_data_and_msg_size(opt_tbl, 1);
-    msg->set_data_and_msg_size(opt_tbl, 4);
+    msg->set_data_and_msg_size(opt_tbl, 7);
     // NOTE - let's not use this, see above
 //    msg->set_data_and_msg_size(opt_tbl, (k+1));
   }
