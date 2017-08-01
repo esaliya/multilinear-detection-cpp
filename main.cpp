@@ -217,7 +217,6 @@ int parse_args(int argc, char **argv) {
     if (is_rank0)
       std::cout<<"INFO: Max message size not specified, assuming "<<max_msg_size<<std::endl;
   }
-  p_ops->max_msg_size = max_msg_size;
 
   if(vm.count(CMD_OPTION_SHORT_PI)){
     parallel_instance_id = vm[CMD_OPTION_SHORT_PI].as<int>();
@@ -249,6 +248,7 @@ int parse_args(int argc, char **argv) {
       std::cout<<"INFO: Iteration block size not specified, assuming "<<iter_bs<<std::endl;
   }
   max_msg_size = max_msg_size * iter_bs;
+  p_ops->max_msg_size = max_msg_size;
   if(is_rank0){
     std::cout<<"INFO: Scaled max message size by iteration chunk size "<<max_msg_size<<std::endl;
   }
