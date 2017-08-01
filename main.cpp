@@ -268,7 +268,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   init_comp(vertices);
 
   // Call parallel ops update count and displas
-  p_ops->update_counts_and_displas(4);
+  p_ops->update_counts_and_displas(2);
 
   // TODO - debug - set external_loops to 1
   external_loops = 1;

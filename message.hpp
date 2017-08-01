@@ -14,15 +14,14 @@ public:
   message(){}
   ~message(){}
 
-  void copy(std::shared_ptr<short> buffer, int offset, int data_idx){
+  /*void copy(std::shared_ptr<short> buffer, int offset, int data_idx){
     buffer.get()[offset] = data.get()[data_idx];
-  }
-  // NOTE - let's not use this method, see above
-  /*void copy(std::shared_ptr<short> buffer, int offset){
-    short* b = buffer.get();
-    b[offset] = dim_a;
-    std::copy(data.get(), data.get()+dim_a, &b[offset+1]);
   }*/
+  // NOTE - let's not use this method, see above
+  void copy(std::shared_ptr<short> buffer, int offset, int msg_size){
+    short* b = buffer.get();
+    std::copy(data.get(), data.get()+msg_size, &b[offset]);
+  }
 
   void load(std::shared_ptr<short> buffer, int offset, int recvd_msg_size){
     msg_size = recvd_msg_size;
@@ -37,13 +36,13 @@ public:
     this->buffer = buffer;
   }*/
 
-  short get(){
+  /*short get(){
     return buffer.get()[read_offset];
-  }
-  // NOTE - let's not use this, see above
-  /*short get(int i){
-    return buffer.get()[read_offset+i];
   }*/
+  // NOTE - let's not use this, see above
+  short get(int i){
+    return buffer.get()[read_offset+i];
+  }
 
   int get_msg_size(){
     return msg_size;

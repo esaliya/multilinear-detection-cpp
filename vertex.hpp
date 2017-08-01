@@ -81,11 +81,11 @@ public:
 
   void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
     int I = super_step+1;
-    data_idx = I;
+    /*data_idx = I;
     if (super_step == 0){
       reset(iter, random_assignments);
     } else if (super_step > 0){
-      /*int field_size = gf->get_field_size();
+      int field_size = gf->get_field_size();
       int poly = 0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         int weight = (*uni_int_dist)(*rnd_engine);
@@ -95,38 +95,43 @@ public:
         product = gf->multiply(weight, product);
         poly = gf->add(poly, product);
       }
-      opt_tbl.get()[I] = (short)poly;*/
-    }
+      opt_tbl.get()[I] = (short)poly;
+    }*/
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;
 //    msg->set_data_and_msg_size(data, 1);
 
-    /*std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
+    std::shared_ptr<short> data = std::shared_ptr<short>(new short[2](), std::default_delete<short[]>());
     if (super_step == 0){
       data.get()[0] = (short) label;
-      msg->set_data_and_msg_size(data, 1);
+      data.get()[1] = (short) label;
+      msg->set_data_and_msg_size(data, 2);
     } else if (super_step > 0){
       data.get()[0] = (short) (label+1);
-      msg->set_data_and_msg_size(data, 1);
+      data.get()[1] = (short) (label+1);
+      msg->set_data_and_msg_size(data, 2);
       std::string str = "v";
       str.append(std::to_string(label)).append(" recvd [ ");
       for (const std::shared_ptr<message> msg : (*recvd_msgs)){
-        str.append(std::to_string(msg->get())).append(" ");
+        str.append(std::to_string(msg->get(0))).append(" ")
+            .append(std::to_string(msg->get(1))).append(" ");
       }
       str.append("] ss=").append(std::to_string(super_step)).append("\n");
       std::cout<<str;
-    }*/
+    }
   }
 
   int prepare_send(int super_step){
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
-      // TODO - debug - let's copy 4 dummy values
+      int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
 //      msg->copy(b->get_buffer(), offset, data_idx);
-      for (int i = 0; i < msg->get_msg_size(); ++i){
+      msg->copy(b->get_buffer(), offset, msg->get_msg_size());
+      // TODO - debug - let's copy 4 dummy values
+      /*for (int i = 0; i < msg->get_msg_size(); ++i){
         b->get_buffer().get()[(b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size()+i] = (short) i;
-      }
+      }*/
     }
     return msg->get_msg_size();
   }
