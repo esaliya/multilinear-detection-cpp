@@ -473,14 +473,14 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
        * iterations and super steps we can do this process received once
        * and be done with it */
       if (iter == 0 && ss < 2) {
-
         // TODO - debug
         MPI_Barrier(MPI_COMM_WORLD);
         if (is_rank0){
           std::cout<<gap<<"  ++ SS "<<ss<<" came before process recv for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
         }
 
-        process_recvd_msgs(vertices, ss, thread_id);
+        // TODO - debug - let's comment process recvd for now
+//        process_recvd_msgs(vertices, ss, thread_id);
 
         // TODO - debug
         MPI_Barrier(MPI_COMM_WORLD);
