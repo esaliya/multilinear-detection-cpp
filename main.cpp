@@ -450,17 +450,43 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
 
   for (int ss = 0; ss < worker_steps; ++ss){
     if (ss > 0){
+
+      // TODO - debug
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (is_rank0){
+        std::cout<<gap<<"  ++ SS "<<ss<<" came before recv for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      }
+
       start_ticks = hrc_t::now();
       recv_msgs(vertices, ss);
       end_ticks = hrc_t::now();
       recv_time_ms += ms_t(end_ticks - start_ticks).count();
+
+      // TODO - debug
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (is_rank0){
+        std::cout<<gap<<"  ++ SS "<<ss<<" came after recv for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      }
 
       start_ticks = hrc_t::now();
       /* Assuming message size doesn't change with
        * iterations and super steps we can do this process received once
        * and be done with it */
       if (iter == 0 && ss < 2) {
+
+        // TODO - debug
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (is_rank0){
+          std::cout<<gap<<"  ++ SS "<<ss<<" came before process recv for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+        }
+
         process_recvd_msgs(vertices, ss, thread_id);
+
+        // TODO - debug
+        MPI_Barrier(MPI_COMM_WORLD);
+        if (is_rank0){
+          std::cout<<gap<<"  ++ SS "<<ss<<" came after process recv for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+        }
       }
       end_ticks = hrc_t::now();
       process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
@@ -469,7 +495,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
     // TODO - debug
     MPI_Barrier(MPI_COMM_WORLD);
     if (is_rank0){
-      std::cout<<gap<<"  ++came before compute for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      std::cout<<gap<<"  ++ SS "<<ss<<" came before compute for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
     }
 
     start_ticks = hrc_t::now();
@@ -480,14 +506,25 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
     // TODO - debug
     MPI_Barrier(MPI_COMM_WORLD);
     if (is_rank0){
-      std::cout<<gap<<"  ++came after compute for iters[ "<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      std::cout<<gap<<"  ++ SS "<<ss<<" came after compute for iters[ "<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
     }
 
     if (ss< worker_steps - 1){
+      // TODO - debug
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (is_rank0){
+        std::cout<<gap<<"  ++ SS "<<ss<<" came before send for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      }
       start_ticks = hrc_t::now();
       send_msgs(vertices, ss);
       end_ticks = hrc_t::now();
       send_time_ms += ms_t(end_ticks - start_ticks).count();
+
+      // TODO - debug
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (is_rank0){
+        std::cout<<gap<<"  ++ SS "<<ss<<" came after send for iters["<< iter+1 << ","<<(iter+iter_bs)<<"]\n";
+      }
     }
   }
 
