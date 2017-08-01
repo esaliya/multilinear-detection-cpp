@@ -106,12 +106,13 @@ public:
 //      for (int i = 0; i < iter_bs; ++i) {
       for (int i = 0; i < 1; ++i) {
         int poly = 0;
-        for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
+        // TODO - let's avoid computation completely
+        /*for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
           int product = gf->multiply(opt_tbl.get()[1 * iter_bs + i], msg->get(i));
           product = gf->multiply(weight, product);
           poly = gf->add(poly, product);
-        }
+        }*/
         opt_tbl.get()[I*iter_bs+i] = (short) poly;
       }
 
