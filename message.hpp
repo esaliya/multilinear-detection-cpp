@@ -16,7 +16,11 @@ public:
 
   void copy(std::shared_ptr<short> buffer, int offset, int data_idx, int data_length){
     // data is such that all data_idx elements of data_length are nearby elements
-    std::copy(data.get()+data_idx, data.get()+data_idx+data_length, &buffer.get()[offset]);
+    // TODO - change data copy
+    for (int i = 0; i < data_length; ++i){
+      buffer.get()[offset+i] = data.get()[data_idx+i];
+    }
+//    std::copy(data.get()+data_idx, data.get()+data_idx+data_length, &buffer.get()[offset]);
   }
   // NOTE - let's not use this method, see above
   /*void copy(std::shared_ptr<short> buffer, int offset){
