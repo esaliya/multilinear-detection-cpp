@@ -89,6 +89,9 @@ public:
   int data_idx = 0;
 
   void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
+    // TODO - debug - print str
+    std::string gap = "      ";
+
     int I = super_step+1;
     data_idx = I;
     if (super_step == 0){
@@ -97,7 +100,11 @@ public:
       int field_size = gf->get_field_size();
       // TODO - debug - remove poly array
 //      reset_super_step();
-      for (int i = 0; i < iter_bs; ++i) {
+
+      // TODO - debug - let's if it's computation that's getting stuck
+      // TODO - to do that, let's make computations do only 1 iter
+//      for (int i = 0; i < iter_bs; ++i) {
+      for (int i = 0; i < 1; ++i) {
         int poly = 0;
         for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
