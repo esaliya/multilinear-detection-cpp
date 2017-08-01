@@ -33,6 +33,8 @@ parallel_ops::~parallel_ops() {
   recvfrom_rank_to_recv_buffer = nullptr;
   delete sendto_rank_to_send_buffer;
   sendto_rank_to_send_buffer = nullptr;
+  delete out_file;
+  out_file = nullptr;
 }
 
 parallel_ops::parallel_ops(int world_proc_rank, int world_procs_count) :
@@ -48,9 +50,10 @@ int parallel_ops::get_world_procs_count() const {
   return world_procs_count;
 }
 
-void parallel_ops::set_parallel_decomposition(const char *file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
+void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
   // TODO - add logic to switch between different partition methods as well as txt vs binary files
   // for now let's assume simple partitioning with text files
+  parallel_ops::out_file = out_file;
   simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
   decompose_among_threads(vertices);
 }
@@ -315,9 +318,35 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
         msg_size += 1;
       }
     }
-
     delete inverse_map;
   }
+
+  // perf counter
+  all_msg_counts = new long[world_procs_count*world_procs_count];
+  my_msg_counts = new long[world_procs_count];
+  int rank_offset = world_proc_rank*world_procs_count;
+  for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)){
+    my_msg_counts[kv.first] = (*kv.second)[0];
+  }
+  MPI_Gather(my_msg_counts, world_procs_count, MPI_LONG, all_msg_counts, world_procs_count, MPI_LONG, 0, MPI_COMM_WORLD);
+
+  std::ofstream out_fs;
+  if (world_proc_rank == 0){
+    out_fs.open(out_file);
+    for (int i = 0; i < world_procs_count; ++i){
+      for (int j = 0; j < world_procs_count; ++j){
+        out_fs << all_msg_counts[i*world_procs_count+j] << " ";
+      }
+      out_fs << std::endl;
+    }
+  }
+  out_fs.close();
+
+  delete [] all_msg_counts;
+  all_msg_counts = nullptr;
+  delete [] my_msg_counts;
+  my_msg_counts = nullptr;
+
   end_ms = std::chrono::high_resolution_clock::now();
   print_timing(start_ms, end_ms, "find_nbr: sendto_rank_to_msgcount_and_destined_labels");
 

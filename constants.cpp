@@ -41,3 +41,6 @@ const char *CMD_OPTION_DESCRIPTION_PI = "Parallel instance id";
 
 const char *CMD_OPTION_SHORT_PIC = "pic";
 const char *CMD_OPTION_DESCRIPTION_PIC = "Parallel instance count";
+
+const char *CMD_OPTION_SHORT_OUT = "out";
+const char *CMD_OPTION_DESCRIPTION_OUT = "Output file";

@@ -97,17 +97,18 @@ public:
       }
       opt_tbl.get()[I] = (short)poly;
     }
-
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;
 //    msg->set_data_and_msg_size(data, 1);
 
-    /*if (super_step == 0){
-      std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
+    /*std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
+    if (super_step == 0){
       data.get()[0] = (short) label;
       msg->set_data_and_msg_size(data, 1);
     } else if (super_step > 0){
+      data.get()[0] = (short) (label+1);
+      msg->set_data_and_msg_size(data, 1);
       std::string str = "v";
       str.append(std::to_string(label)).append(" recvd [ ");
       for (const std::shared_ptr<message> msg : (*recvd_msgs)){

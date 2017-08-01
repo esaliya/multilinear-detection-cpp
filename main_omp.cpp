@@ -15,6 +15,7 @@ void MPI_Bcast_chunk(int* arr, unsigned long length, int root, int rank);
 
 void measure_bcast(int i, int rank);
 void measure_binary_read(long vc, long ec, char *file);
+void gather_test();
 
 int world_proc_rank;
 int world_procs_count;
@@ -54,12 +55,33 @@ int main(int argc, char *argv[]) {
   }*/
 
 //  measure_bcast(i, rank);
-  measure_binary_read(std::stol(argv[1]), std::stol(argv[2]), argv[3]);
-
+//  measure_binary_read(std::stol(argv[1]), std::stol(argv[2]), argv[3]);
+  gather_test();
   MPI::Finalize();
 
   return (0);
 }
+
+void gather_test(){
+  int *arr = nullptr;
+  if (world_proc_rank == 0){
+    arr = new int[world_procs_count*world_procs_count];
+  }
+  int *send_buff = new int[world_procs_count];
+  for (int i = 0; i < world_procs_count; ++i) {
+    send_buff[i] = world_proc_rank;
+  }
+  MPI_Gather(send_buff, world_procs_count, MPI_INT, arr, world_procs_count, MPI_INT, 0, MPI_COMM_WORLD);
+  if (world_proc_rank == 0) {
+    for (int i = 0; i < world_procs_count * world_procs_count; ++i) {
+      std::cout << arr[i] << " ";
+    }
+  }
+  std::cout<<std::endl;
+  delete [] arr;
+  delete [] send_buff;
+}
+
 
 void measure_bcast(int i, int rank) {// Measure bcast timing for 13 GB of Friendstar data
   int e = 1806067135;
