@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <thread>
 
 typedef std::chrono::duration<double, std::milli> ms_t;
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
@@ -683,7 +684,8 @@ void parallel_ops::send_msgs(int msg_size, int super_step) {
       std::copy(buffer.get(), buffer.get()+buffer_content_size, b.get());
     } else {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
-      // TODO - debug - print send req counts for ss=1
+      // TODO - debug - print send req counts for ss=1 - adding a thread sleep
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
       /*if (super_step == 1){
         std::string print_str = "send: to ";
         print_str.append(std::to_string(sendto_rank)).append(" from ")
@@ -712,6 +714,7 @@ void parallel_ops::recv_msgs(int super_step) {
 //      }
       // TODO - debug - print recv req counts for ss=2 because that's where this stucks
       // the ones to receive come from ss=1
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
       /*if (super_step == 2){
         std::string print_str = "recv: from ";
         print_str.append(std::to_string(recvfrom_rank)).append(" to ")
