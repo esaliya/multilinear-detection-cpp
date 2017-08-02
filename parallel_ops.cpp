@@ -679,7 +679,7 @@ void parallel_ops::send_msgs(int msg_size) {
       std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
       std::copy(buffer.get(), buffer.get()+buffer_content_size, b.get());
     } else {
-      MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, world_proc_rank, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
+      MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
       ++req_count;
     }
   }
@@ -693,7 +693,7 @@ void parallel_ops::recv_msgs() {
     int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[recvfrom_rank])[0];
     if (recvfrom_rank != world_proc_rank){
       MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
-                MPI_SHORT, recvfrom_rank, recvfrom_rank, MPI_COMM_WORLD,
+                MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
                 &send_recv_reqs[req_count+recv_req_offset]);
       ++req_count;
     }
