@@ -68,9 +68,8 @@ public:
     uni_int_dist = nullptr;
     delete [] rnd_engine;
     rnd_engine = nullptr;
-    // TODO - debug - remove poly array
-//    delete [] poly_arr;
-//    poly_arr = nullptr;
+    delete [] poly_arr;
+    poly_arr = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
@@ -94,33 +93,21 @@ public:
     if (super_step == 0){
       reset(iter, random_assignments);
     } else if (super_step > 0){
-      // TODO - debug - do nothing
-
-//      int field_size = gf->get_field_size();
-      // TODO - debug - remove poly array
-//      reset_super_step();
-
-      // TODO - debug - let's if it's computation that's getting stuck
-      // TODO - to do that, let's make computations do only 1 iter
-//      for (int i = 0; i < iter_bs; ++i) {
-//      for (int i = 0; i < 1; ++i) {
-//        int poly = 0;
-        // TODO - let's avoid computation completely
-        /*for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
+      int field_size = gf->get_field_size();
+      reset_super_step();
+      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+        for (int i = 0; i < iter_bs; ++i) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
-          int product = gf->multiply(opt_tbl.get()[1 * iter_bs + i], msg->get(i));
+          int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
           product = gf->multiply(weight, product);
-          poly = gf->add(poly, product);
-        }*/
-//        opt_tbl.get()[I*iter_bs+i] = (short) poly;
-//      }
+          poly_arr[i] = gf->add(poly_arr[i], product);
+        }
+      }
 
-      // TODO - debug - remove poly array
-//      for (int i = 0; i < iter_bs; ++i) {
-//        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
-//      }
+      for (int i = 0; i < iter_bs; ++i) {
+        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
+      }
     }
-
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;
@@ -144,25 +131,14 @@ public:
   }
 
   int prepare_send(int super_step, int shift){
-    // TODO - debug - let's put some cons values
     for (const auto &kv : (*outrank_to_send_buffer)){
-      std::shared_ptr<vertex_buffer> b = kv.second;
-      int offset = shift + b->get_offset_factor() * 4;
-      for (int i = 0; i < 4; ++i){
-        b->get_buffer().get()[offset+i] = (short) i;
-      }
-    }
-
-    return 4;
-
-
-    /*for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = shift + b->get_offset_factor() * msg->get_msg_size();
       msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
+      // NOTE - let's not use this, see above
+//      msg->copy(b->get_buffer(), offset);
     }
     return msg->get_msg_size();
-     */
   }
 
   void process_recvd(int super_step, int shift){
@@ -184,8 +160,7 @@ public:
     // other indices follow the same rule
     opt_tbl_length = (k+1)*iter_bs;
     opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
-    // TODO - debug - remove poly array
-//    poly_arr = new int[iter_bs];
+    poly_arr = new int[iter_bs];
   }
 
   void reset(int iter, std::shared_ptr<std::map<int,int>> random_assignments){
@@ -240,13 +215,12 @@ private:
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;
 
-  // TODO - debug - remove poly array
-  /*int *poly_arr = nullptr;
+  int *poly_arr = nullptr;
   void reset_super_step(){
     for (int i = 0; i < iter_bs; ++i){
       poly_arr[i] = 0;
     }
-  }*/
+  }
 };
 
 
