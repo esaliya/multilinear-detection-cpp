@@ -9,6 +9,9 @@
 #include <chrono>
 
 typedef std::chrono::duration<double, std::milli> ms_t;
+typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
+
+typedef std::chrono::high_resolution_clock hrc_t;
 
 parallel_ops * parallel_ops::initialize(int *argc, char ***argv) {
   int rank, count;
@@ -681,12 +684,12 @@ void parallel_ops::send_msgs(int msg_size, int super_step) {
     } else {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
       // TODO - debug - print req counts
-      if (super_step == 1){
+      /*if (super_step == 1){
         std::string print_str = "send: to ";
         print_str.append(std::to_string(sendto_rank)).append(" from ")
             .append(std::to_string(world_proc_rank)).append("\n");
         std::cout<<print_str;
-      }
+      }*/
       ++req_count;
     }
   }
@@ -700,18 +703,77 @@ void parallel_ops::recv_msgs(int super_step) {
     std::shared_ptr<short> buffer = kv.second;
     int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[recvfrom_rank])[0];
     if (recvfrom_rank != world_proc_rank){
-      MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
-                MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
-                &send_recv_reqs[req_count+recv_req_offset]);
+      // TODO - debug - do this only if ss != 1
+      if (super_step != 1) {
+        MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
+                  MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
+                  &send_recv_reqs[req_count + recv_req_offset]);
+        ++req_count;
+      }
       // TODO - debug - print req counts
-      if (super_step == 1){
+      /*if (super_step == 1){
         std::string print_str = "recv: from ";
         print_str.append(std::to_string(recvfrom_rank)).append(" to ")
             .append(std::to_string(world_proc_rank)).append("\n");
         std::cout<<print_str;
-      }
-      ++req_count;
+      }*/
+
     }
+  }
+
+  if (super_step == 1){
+    // -1 means we don't expect recvs from that rank, also true for same rank
+    // 0 means haven't recvd yet
+    // 1 means recvd
+    int iprobed [world_procs_count];
+    std::fill_n(iprobed, world_procs_count, -1);
+    int expected_req_count = 0;
+    for (const auto &kv : (*recvfrom_rank_to_recv_buffer)) {
+      int recvfrom_rank = kv.first;
+      if (recvfrom_rank != world_proc_rank) {
+        iprobed[recvfrom_rank] = 0;
+        ++expected_req_count;
+      }
+    }
+
+    int flag = 0;
+    MPI_Status st;
+    ticks_t start = hrc_t::now();
+    int max_wait_duration = 5000; // 5 seconds
+    while(true){
+      MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &flag, &st);
+      if (flag){
+        if (iprobed[st.MPI_SOURCE] == 0){
+          iprobed[st.MPI_SOURCE] = 1;
+          std::shared_ptr<short> buffer = (*recvfrom_rank_to_recv_buffer)[st.MPI_SOURCE];
+          int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[st.MPI_SOURCE])[0];
+          MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
+                    MPI_SHORT, st.MPI_SOURCE, 0, MPI_COMM_WORLD,
+                    &send_recv_reqs[req_count + recv_req_offset]);
+          ++req_count;
+        }
+        flag = 0;
+      }
+      ticks_t end = hrc_t::now();
+      if (req_count == expected_req_count){
+        break;
+      }
+      if (ms_t(end - start).count() > max_wait_duration){
+        break;
+      }
+    }
+    std::string print_str = "iprobs: missing after ";
+    print_str.append(std::to_string(max_wait_duration)).append(" ms for rank ");
+    print_str.append(std::to_string(world_proc_rank)).append(" are from [ ");
+    int iprobed_miss_count = 0;
+    for (int i = 0; i < world_procs_count; ++i){
+      if (iprobed[i] == 0){
+        ++iprobed_miss_count;
+        print_str.append(std::to_string(iprobed[i])).append(" ");
+      }
+    }
+    print_str.append("] count ").append(std::to_string(iprobed_miss_count)).append("\n");
+    std::cout<<print_str;
   }
 
   MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
