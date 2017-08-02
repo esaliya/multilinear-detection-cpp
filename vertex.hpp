@@ -58,10 +58,18 @@ public:
     msg = nullptr;
     delete recvd_msgs;
     recvd_msgs = nullptr;
-    delete uni_int_dist;
+    for (int i = 0; i < iter_bs; ++i) {
+      delete uni_int_dist[i];
+      uni_int_dist[i] = nullptr;
+      delete rnd_engine[i];
+      rnd_engine[i] = nullptr;
+    }
+    delete [] uni_int_dist;
     uni_int_dist = nullptr;
-    delete rnd_engine;
+    delete [] rnd_engine;
     rnd_engine = nullptr;
+    delete [] poly_arr;
+    poly_arr = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
@@ -86,16 +94,19 @@ public:
       reset(iter, random_assignments);
     } else if (super_step > 0){
       int field_size = gf->get_field_size();
-      int poly = 0;
+      reset_super_step();
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
-        int weight = (*uni_int_dist)(*rnd_engine);
-        int product = gf->multiply(opt_tbl.get()[1], msg->get());
-        // NOTE - let's not use this, see above
-//        int product = gf->multiply(opt_tbl.get()[1], msg->get(I-1));
-        product = gf->multiply(weight, product);
-        poly = gf->add(poly, product);
+        for (int i = 0; i < iter_bs; ++i) {
+          int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+          int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
+          product = gf->multiply(weight, product);
+          poly_arr[i] = gf->add(poly_arr[i], product);
+        }
       }
-      opt_tbl.get()[I] = (short)poly;
+
+      for (int i = 0; i < iter_bs; ++i) {
+        opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
+      }
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
@@ -126,7 +137,7 @@ public:
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
-      msg->copy(b->get_buffer(), offset, data_idx);
+      msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
 //      msg->copy(b->get_buffer(), offset, msg->get_msg_size());
       // TODO - debug - let's copy 4 dummy values
       /*for (int i = 0; i < msg->get_msg_size(); ++i){
@@ -147,10 +158,17 @@ public:
     }
   }
 
-  void init(int k , int r, std::shared_ptr<galois_field> gf){
+  void init(int k , int r, std::shared_ptr<galois_field> gf, int iter_bs){
     this->k = k;
     this->gf = gf;
-    opt_tbl = std::shared_ptr<short>(new short[k+1](), std::default_delete<short[]>());
+    this->iter_bs = iter_bs;
+    // opt_table now contains entries for iter_bs iterations
+    // elements i of each iteration are kept near
+    // i.e. opt_tbl[0,(iter_bs-1)] are idx 0 values for iter_bs iterations
+    // other indices follow the same rule
+    opt_tbl_length = (k+1)*iter_bs;
+    opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
+    poly_arr = new int[iter_bs];
   }
 
   void reset(int iter, std::shared_ptr<std::map<int,int>> random_assignments){
@@ -158,30 +176,37 @@ public:
     // Note, in C++ the distribution is in closed interval [a,b]
     // whereas in Java it's [a,b), so the random.nextInt(fieldSize)
     // equivalent in C++ is [0,gf->get_field_size() - 1]
-    uni_int_dist = new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
-    rnd_engine = new std::default_random_engine(uniq_rand_seed);
+
+    // Note, now we need iter_bs of random engines
+    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
+    rnd_engine = new std::default_random_engine*[iter_bs];
+    for (int i = 0; i < iter_bs; ++i){
+      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
+      rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
+    }
 
     // set arrays in vertex data
-    for (int i = 0; i < k+1; ++i){
+    for (int i = 0; i < opt_tbl_length; ++i){
       opt_tbl.get()[i] = 0;
     }
 
+    for (int i = 0; i < iter_bs; ++i) {
+      // dot product is bitwise 'and'
+      int dot_product = (*random_assignments)[label] & (iter+i);
+      std::bitset<sizeof(int) * 8> bs((unsigned int) dot_product);
+      int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
+      opt_tbl.get()[1*iter_bs+i] = (short) eigen_val;
+    }
 
-    // dot product is bitwise 'and'
-    int dot_product = (*random_assignments)[label] & iter;
-    std::bitset<sizeof(int)*8> bs((unsigned int)dot_product);
-    int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
-    opt_tbl.get()[1] = (short) eigen_val;
-
-    msg->set_data_and_msg_size(opt_tbl, 1);
-    // TODO - debug - let's set size to 4
-//    msg->set_data_and_msg_size(opt_tbl, 4);
+    msg->set_data_and_msg_size(opt_tbl, iter_bs);
     // NOTE - let's not use this, see above
 //    msg->set_data_and_msg_size(opt_tbl, (k+1));
   }
 
   void finalize_iteration(){
-    total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k]);
+    for (int i = 0; i < iter_bs; ++i) {
+      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k*iter_bs+i]);
+    }
   }
 
   bool finalize_iterations(){
@@ -190,11 +215,20 @@ public:
 
 private:
   int k;
+  int iter_bs; // iteration block size
+  int opt_tbl_length;
   std::shared_ptr<galois_field> gf;
   std::shared_ptr<short> opt_tbl = nullptr;
   short total_sum;
-  std::uniform_int_distribution<int>* uni_int_dist = nullptr;
-  std::default_random_engine* rnd_engine = nullptr;
+  std::uniform_int_distribution<int>** uni_int_dist = nullptr;
+  std::default_random_engine** rnd_engine = nullptr;
+
+  int *poly_arr = nullptr;
+  void reset_super_step(){
+    for (int i = 0; i < iter_bs; ++i){
+      poly_arr[i] = 0;
+    }
+  }
 };
 
 

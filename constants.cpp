@@ -44,3 +44,6 @@ const char *CMD_OPTION_DESCRIPTION_PIC = "Parallel instance count";
 
 const char *CMD_OPTION_SHORT_OUT = "out";
 const char *CMD_OPTION_DESCRIPTION_OUT = "Output file";
+
+const char *CMD_OPTION_SHORT_IBS = "ibs";
+const char *CMD_OPTION_DESCRIPTION_IBS = "Iteration block size";
