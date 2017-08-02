@@ -568,7 +568,7 @@ void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super
 }
 
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
-  p_ops->recv_msgs();
+  p_ops->recv_msgs(super_step);
 }
 
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
@@ -588,7 +588,7 @@ void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
 
   // TODO - debug - let's set message size to 1
 //  p_ops->send_msgs((*vertices)[0]->msg-> get_msg_size());
-  p_ops->send_msgs(4);
+  p_ops->send_msgs(4, super_step);
 }
 
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id) {

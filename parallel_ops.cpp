@@ -661,7 +661,7 @@ std::string parallel_ops::mpi_gather_string(std::string &str) {
   return r;
 }
 
-void parallel_ops::send_msgs(int msg_size) {
+void parallel_ops::send_msgs(int msg_size, int super_step) {
   msg_size_to_recv = msg_size;
   int req_count = 0;
   for (const auto &kv : (*sendto_rank_to_send_buffer)){
@@ -680,12 +680,20 @@ void parallel_ops::send_msgs(int msg_size) {
       std::copy(buffer.get(), buffer.get()+buffer_content_size, b.get());
     } else {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
+      // TODO - debug - print req counts
+      if (super_step == 1){
+        std::string print_str = "send: to ";
+        print_str.append(std::to_string(sendto_rank)).append(" from ")
+            .append(std::to_string(world_proc_rank)).append("\n");
+        std::cout<<print_str;
+      }
       ++req_count;
     }
   }
+
 }
 
-void parallel_ops::recv_msgs() {
+void parallel_ops::recv_msgs(int super_step) {
   int req_count = 0;
   for (const auto &kv : (*recvfrom_rank_to_recv_buffer)){
     int recvfrom_rank = kv.first;
@@ -695,6 +703,13 @@ void parallel_ops::recv_msgs() {
       MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
                 MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
                 &send_recv_reqs[req_count+recv_req_offset]);
+      // TODO - debug - print req counts
+      if (super_step == 1){
+        std::string print_str = "recv: from ";
+        print_str.append(std::to_string(recvfrom_rank)).append(" to ")
+            .append(std::to_string(world_proc_rank)).append("\n");
+        std::cout<<print_str;
+      }
       ++req_count;
     }
   }
