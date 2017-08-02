@@ -684,12 +684,12 @@ void parallel_ops::send_msgs(int msg_size, int super_step) {
     } else {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
       // TODO - debug - print send req counts for ss=1
-      if (super_step == 1){
+      /*if (super_step == 1){
         std::string print_str = "send: to ";
         print_str.append(std::to_string(sendto_rank)).append(" from ")
             .append(std::to_string(world_proc_rank)).append(" ss=").append(std::to_string(super_step)).append("\n");
         std::cout<<print_str;
-      }
+      }*/
       ++req_count;
     }
   }
@@ -712,12 +712,12 @@ void parallel_ops::recv_msgs(int super_step) {
 //      }
       // TODO - debug - print recv req counts for ss=2 because that's where this stucks
       // the ones to receive come from ss=1
-      if (super_step == 2){
+      /*if (super_step == 2){
         std::string print_str = "recv: from ";
         print_str.append(std::to_string(recvfrom_rank)).append(" to ")
             .append(std::to_string(world_proc_rank)).append(" ss=").append(std::to_string(super_step)).append("\n");
         std::cout<<print_str;
-      }
+      }*/
 
     }
   }
