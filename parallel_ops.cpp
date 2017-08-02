@@ -683,13 +683,13 @@ void parallel_ops::send_msgs(int msg_size, int super_step) {
       std::copy(buffer.get(), buffer.get()+buffer_content_size, b.get());
     } else {
       MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, 0, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
-      // TODO - debug - print req counts
-      /*if (super_step == 1){
+      // TODO - debug - print send req counts for ss=1
+      if (super_step == 1){
         std::string print_str = "send: to ";
         print_str.append(std::to_string(sendto_rank)).append(" from ")
-            .append(std::to_string(world_proc_rank)).append("\n");
+            .append(std::to_string(world_proc_rank)).append(" ss=").append(std::to_string(super_step)).append("\n");
         std::cout<<print_str;
-      }*/
+      }
       ++req_count;
     }
   }
@@ -704,24 +704,25 @@ void parallel_ops::recv_msgs(int super_step) {
     int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[recvfrom_rank])[0];
     if (recvfrom_rank != world_proc_rank){
       // TODO - debug - do this only if ss != 2
-      if (super_step != 2) {
+//      if (super_step != 2) {
         MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
                   MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
                   &send_recv_reqs[req_count + recv_req_offset]);
         ++req_count;
-      }
-      // TODO - debug - print req counts
-      /*if (super_step == 1){
+//      }
+      // TODO - debug - print recv req counts for ss=2 because that's where this stucks
+      // the ones to receive come from ss=1
+      if (super_step == 2){
         std::string print_str = "recv: from ";
         print_str.append(std::to_string(recvfrom_rank)).append(" to ")
-            .append(std::to_string(world_proc_rank)).append("\n");
+            .append(std::to_string(world_proc_rank)).append(" ss=").append(std::to_string(super_step)).append("\n");
         std::cout<<print_str;
-      }*/
+      }
 
     }
   }
 
-  if (super_step == 2){
+  /*if (super_step == 2){
     // -1 means we don't expect recvs from that rank, also true for same rank
     // 0 means haven't recvd yet
     // 1 means recvd
@@ -774,7 +775,7 @@ void parallel_ops::recv_msgs(int super_step) {
     }
     print_str.append("] count ").append(std::to_string(iprobed_miss_count)).append("\n");
     std::cout<<print_str;
-  }
+  }*/
 
   MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
 }
