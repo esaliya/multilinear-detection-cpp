@@ -703,8 +703,8 @@ void parallel_ops::recv_msgs(int super_step) {
     std::shared_ptr<short> buffer = kv.second;
     int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[recvfrom_rank])[0];
     if (recvfrom_rank != world_proc_rank){
-      // TODO - debug - do this only if ss != 1
-      if (super_step != 1) {
+      // TODO - debug - do this only if ss != 2
+      if (super_step != 2) {
         MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
                   MPI_SHORT, recvfrom_rank, 0, MPI_COMM_WORLD,
                   &send_recv_reqs[req_count + recv_req_offset]);
@@ -721,7 +721,7 @@ void parallel_ops::recv_msgs(int super_step) {
     }
   }
 
-  if (super_step == 1){
+  if (super_step == 2){
     // -1 means we don't expect recvs from that rank, also true for same rank
     // 0 means haven't recvd yet
     // 1 means recvd
