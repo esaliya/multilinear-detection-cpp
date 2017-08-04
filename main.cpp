@@ -58,6 +58,7 @@ int max_msg_size = 500;
 int parallel_instance_id = 0;
 int parallel_instance_count = 1;
 int iter_bs = 1;
+int is_binary = 0;
 
 bool is_rank0 = false;
 
@@ -92,7 +93,7 @@ int main(int argc, char **argv) {
   is_rank0 = (p_ops->get_world_proc_rank() == 0);
 
   std::vector<std::shared_ptr<vertex>> *vertices = nullptr;
-  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(), global_vertex_count, global_edge_count, vertices);
+  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(), global_vertex_count, global_edge_count, vertices, is_binary);
   run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
@@ -118,6 +119,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_PI, po::value<int>(), CMD_OPTION_DESCRIPTION_PI)
       (CMD_OPTION_SHORT_PIC, po::value<int>(), CMD_OPTION_DESCRIPTION_PIC)
       (CMD_OPTION_SHORT_IBS, po::value<int>(), CMD_OPTION_DESCRIPTION_IBS)
+      (CMD_OPTION_SHORT_BIN, po::value<int>(), CMD_OPTION_DESCRIPTION_BIN)
       (CMD_OPTION_SHORT_OUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_OUT)
       ;
 
@@ -253,6 +255,13 @@ int parse_args(int argc, char **argv) {
     std::cout<<"INFO: Scaled max message size by iteration chunk size "<<max_msg_size<<std::endl;
   }
 
+  if(vm.count(CMD_OPTION_SHORT_BIN)){
+    is_binary = vm[CMD_OPTION_SHORT_BIN].as<int>();
+  }else {
+    is_binary = 0;
+    if (is_rank0)
+      std::cout<<"INFO: Is binary not specified, assuming text"<<std::endl;
+  }
 
   return 0;
 }

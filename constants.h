@@ -56,4 +56,7 @@ extern const char *CMD_OPTION_DESCRIPTION_OUT;
 
 extern const char *CMD_OPTION_SHORT_IBS;
 extern const char *CMD_OPTION_DESCRIPTION_IBS;
+
+extern const char *CMD_OPTION_SHORT_BIN;
+extern const char *CMD_OPTION_DESCRIPTION_BIN;
 #endif //CLIONCPP_CONSTANTS_H
