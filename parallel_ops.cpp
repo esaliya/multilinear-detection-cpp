@@ -334,8 +334,10 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     delete inverse_map;
   }
 
-#ifdef LONG_DEBUG
   // perf counter
+  if (world_proc_rank == 0){
+    std::cout<<"**Rank0 writing perf output to "<< out_file;
+  }
   all_msg_counts = new long[world_procs_count*world_procs_count];
   my_msg_counts = new long[world_procs_count];
   int rank_offset = world_proc_rank*world_procs_count;
@@ -360,7 +362,6 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   all_msg_counts = nullptr;
   delete [] my_msg_counts;
   my_msg_counts = nullptr;
-#endif
 
   end_ms = std::chrono::high_resolution_clock::now();
   print_timing(start_ms, end_ms, "find_nbr: sendto_rank_to_msgcount_and_destined_labels");
