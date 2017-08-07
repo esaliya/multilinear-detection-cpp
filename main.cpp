@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
                                     global_vertex_count, global_edge_count,
                                     vertices, is_binary, parallel_instance_count);
 
-  is_instance0_rank0 = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
+  is_instance0_rank0 = (p_ops->instance_id == 1 && p_ops->instance_proc_rank == 0);
 
   run_program(vertices);
   delete vertices;
@@ -579,7 +579,7 @@ void print_timing(
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, p_ops->MPI_COMM_INSTANCE);
-  if (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0){
+  if (is_instance0_rank0){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" <<std::endl;
   }
