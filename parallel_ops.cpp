@@ -51,43 +51,41 @@ parallel_ops::parallel_ops(int world_proc_rank, int world_procs_count) :
     world_procs_count(world_procs_count) {
 }
 
-int parallel_ops::get_world_proc_rank() const {
-  return world_proc_rank;
-}
+void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file,
+                                              int global_vertx_count, int global_edge_count,
+                                              std::vector<std::shared_ptr<vertex>> *&vertices,
+                                              int is_binary, int pic) {
+  /* Decompose world into pic instances */
+  instance_id = world_proc_rank / (world_procs_count/pic);
+  MPI_Comm_split(MPI_COMM_WORLD, instance_id, world_proc_rank, &MPI_COMM_INSTANCE);
+  MPI_Comm_rank(MPI_COMM_INSTANCE, &instance_proc_rank);
+  MPI_Comm_size(MPI_COMM_INSTANCE, &instance_procs_count);
+  assert(instance_procs_count == (world_procs_count/pic));
 
-int parallel_ops::get_world_procs_count() const {
-  return world_procs_count;
-}
-
-void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary) {
-  // TODO - add logic to switch between different partition methods as well as txt vs binary files
-  // for now let's assume simple partitioning with text files
   parallel_ops::out_file = out_file;
   if (is_binary){
     simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
   } else {
     simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
   }
-  decompose_among_threads(vertices);
 }
 
 // NOTE - Old method keep it for now
 void parallel_ops::simple_graph_partition(const char *file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
   std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
 
-  int q = global_vertex_count/world_procs_count;
-  int r = global_vertex_count % world_procs_count;
-  int local_vertex_count = (world_proc_rank < r) ? q+1: q;
-  int skip_vertex_count = q*world_proc_rank + (world_proc_rank < r ? world_proc_rank : r);
+  int q = global_vertex_count/instance_procs_count;
+  int r = global_vertex_count % instance_procs_count;
+  int local_vertex_count = (instance_proc_rank < r) ? q+1: q;
+  int skip_vertex_count = q*instance_proc_rank + (instance_proc_rank < r ? instance_proc_rank : r);
 
 #ifdef LONG_DEBUG
-  std::string debug_str = (world_proc_rank==0) ? "DEBUG: simple_graph_partition: 1: q,r,localvc  [ " : " ";
+  std::string debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: simple_graph_partition: 1: q,r,localvc  [ " : " ";
   debug_str.append("[").append(std::to_string(q)).append(",").append(std::to_string(r)).append(",").append(std::to_string(local_vertex_count)).append("] ");
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
-//  std::cout<<"Rank: " << world_proc_rank << " q: " << q << " r: " << r << " local_vertex_count: " << local_vertex_count << std::endl;
 #endif
 
   std::ifstream fs;
@@ -123,23 +121,6 @@ void parallel_ops::simple_graph_partition(const char *file, int global_vertex_co
   print_timing(start, end, "simple_graph_partition: find_nbrs total");
 }
 
-void parallel_ops::decompose_among_threads(std::vector<std::shared_ptr<vertex>> *&vertices) {
-  int length = (int) vertices->size();
-  int p = length / thread_count;
-  int q = length % thread_count;
-  thread_id_to_vertex_offset = std::shared_ptr<int>(new int[thread_count](), std::default_delete<int[]>());
-  thread_id_to_vertex_count = std::shared_ptr<int>(new int[thread_count](), std::default_delete<int[]>());
-  for (int i = 0; i < thread_count; ++i){
-    thread_id_to_vertex_count.get()[i] = (i < q) ? (p+1) : p;
-  }
-  thread_id_to_vertex_offset.get()[0] = 0;
-  for (int i = 1; i < thread_count; ++i){
-    thread_id_to_vertex_offset.get()[i]
-        = thread_id_to_vertex_offset.get()[i-1]
-          + thread_id_to_vertex_count.get()[i-1];
-  }
-}
-
 void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
   std::chrono::time_point<std::chrono::high_resolution_clock > start_ms, end_ms;
 
@@ -162,70 +143,70 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
 #ifdef LONG_DEBUG
   /* Check vertex label to vertex map */
-  std::string debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 1: lastvertex [ " : " ";
+  std::string debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 1: lastvertex [ " : " ";
   debug_str.append(std::to_string((*label_to_vertex)[tmp_lbl]->label)).append(" ");
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
 
-  int *local_vertex_counts = new int[world_procs_count];
-  MPI_Allgather(&local_vertex_count, 1, MPI_INT, local_vertex_counts, 1, MPI_INT, MPI_COMM_WORLD);
+  int *local_vertex_counts = new int[instance_procs_count];
+  MPI_Allgather(&local_vertex_count, 1, MPI_INT, local_vertex_counts, 1, MPI_INT, MPI_COMM_INSTANCE);
 
   my_vertex_count = local_vertex_count;
 #ifdef LONG_DEBUG
   /* Check local vertex counts */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 2: vcount [ " : " ";
-  for (int i = 0; i < world_procs_count; ++i) {
+  debug_str = (instance_id == 0 && world_proc_rank==0) ? "DEBUG: find_nbrs: 2: vcount [ " : " ";
+  for (int i = 0; i < instance_procs_count; ++i) {
     debug_str.append(std::to_string(local_vertex_counts[i])).append(" ");
   }
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
 
-  int *local_vertex_displas = new int[world_procs_count];
+  int *local_vertex_displas = new int[instance_procs_count];
   local_vertex_displas[0] = 0;
-  for (int i = 1; i < world_procs_count; ++i){
+  for (int i = 1; i < instance_procs_count; ++i){
     local_vertex_displas[i] = local_vertex_displas[i-1]+local_vertex_counts[i-1];
   }
 
-  my_vertex_displas = local_vertex_displas[world_proc_rank];
+  my_vertex_displas = local_vertex_displas[instance_proc_rank];
 
 #ifdef LONG_DEBUG
   /* Check local vertex displas */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 3: vdisplas [ " : " ";
-  for (int i = 0; i < world_procs_count; ++i) {
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 3: vdisplas [ " : " ";
+  for (int i = 0; i < instance_procs_count; ++i) {
     debug_str.append(std::to_string(local_vertex_displas[i])).append(" ");
   }
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
 
   start_ms = std::chrono::high_resolution_clock::now();
   int *global_vertex_labels = new int[global_vertex_count];
-  int offset = local_vertex_displas[world_proc_rank];
+  int offset = local_vertex_displas[instance_proc_rank];
   for (int i = 0; i < local_vertex_count; ++i){
     global_vertex_labels[i+offset] = (*vertices)[i]->label;
   }
   MPI_Allgatherv(MPI_IN_PLACE, local_vertex_count, MPI_INT, global_vertex_labels,
-                 local_vertex_counts, local_vertex_displas, MPI_INT, MPI_COMM_WORLD);
+                 local_vertex_counts, local_vertex_displas, MPI_INT, MPI_COMM_INSTANCE);
   end_ms = std::chrono::high_resolution_clock::now();
   print_timing(start_ms, end_ms, "find_nbr: global_vertex_labels allgather");
 
 #ifdef LONG_DEBUG
   /* Check global vertex labels */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 4: vlabels [ \n" : " ";
-  for (int i = 0; i < world_procs_count; ++i) {
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 4: vlabels [ \n" : " ";
+  for (int i = 0; i < instance_procs_count; ++i) {
     debug_str.append("  r").append(std::to_string(i)).append("[ ");
     for (int j = 0; j < local_vertex_counts[i]; ++j){
       debug_str.append(std::to_string(global_vertex_labels[local_vertex_displas[i]+j])).append(" ");
     }
     debug_str.append("]\n");
   }
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && world_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
@@ -233,43 +214,43 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   /* Just keep in mind this map and the global_vertex_labels can be really large
    * Think of optimizations if this becomes a bottleneck */
   start_ms = std::chrono::high_resolution_clock::now();
-  vertex_label_to_world_rank = std::make_shared<std::map<int,int>>();
-  std::map<int,int> *label_to_world_rank = new std::map<int,int>();
-  for (int rank = 0; rank < world_procs_count; ++rank){
+  vertex_label_to_instance_rank = std::make_shared<std::map<int,int>>();
+  std::map<int,int> *label_to_instance_rank = new std::map<int,int>();
+  for (int rank = 0; rank < instance_procs_count; ++rank){
     for (int i = 0; i < local_vertex_counts[rank]; ++i){
       offset = local_vertex_displas[rank];
-      (*vertex_label_to_world_rank)[global_vertex_labels[i + offset]] = rank;
+      (*vertex_label_to_instance_rank)[global_vertex_labels[i + offset]] = rank;
     }
   }
   end_ms = std::chrono::high_resolution_clock::now();
-  print_timing(start_ms, end_ms, "find_nbr: label_to_world_rank map creation");
+  print_timing(start_ms, end_ms, "find_nbr: label_to_instance_rank map creation");
 
   /* Set where out-neighbors of vertices live */
   start_ms = std::chrono::high_resolution_clock::now();
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    std::map<int, int> *outnbr_label_to_world_rank = v->outnbr_lbl_to_world_rank;
-    for (const auto &kv : (*outnbr_label_to_world_rank)){
-      int rank = (*vertex_label_to_world_rank)[kv.first];
-      (*outnbr_label_to_world_rank)[kv.first] = rank;
+    std::map<int, int> *outnbr_label_to_instance_rank = v->outnbr_lbl_to_instance_rank;
+    for (const auto &kv : (*outnbr_label_to_instance_rank)){
+      int rank = (*vertex_label_to_instance_rank)[kv.first];
+      (*outnbr_label_to_instance_rank)[kv.first] = rank;
       (*v->outrank_to_send_buffer)[rank] = std::make_shared<vertex_buffer>();
     }
   }
   end_ms = std::chrono::high_resolution_clock::now();
-  print_timing(start_ms, end_ms, "find_nbr: set outnbr_label_to_world_rank for each my v");
+  print_timing(start_ms, end_ms, "find_nbr: set outnbr_label_to_instance_rank for each my v");
 
 #ifdef LONG_DEBUG
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 5: out_nbrs [ \n" : " ";
-  debug_str.append("  r").append(std::to_string(world_proc_rank)).append("[\n");
+  debug_str = (instance_id == 0 && world_proc_rank==0) ? "DEBUG: find_nbrs: 5: out_nbrs [ \n" : " ";
+  debug_str.append("  r").append(std::to_string(instance_proc_rank)).append("[\n");
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    std::map<int, int> *outnbr_label_to_world_rank = v->outnbr_lbl_to_world_rank;
+    std::map<int, int> *outnbr_label_to_instance_rank = v->outnbr_lbl_to_instance_rank;
     debug_str.append("    v").append(std::to_string(v->label)).append("[\n");
-    for (const auto &kv : (*outnbr_label_to_world_rank)){
+    for (const auto &kv : (*outnbr_label_to_instance_rank)){
       debug_str.append("      nbr").append(std::to_string(kv.first)).append("->r").append(std::to_string(kv.second)).append("\n");
     }
     debug_str.append("    ]\n");
   }
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
@@ -283,13 +264,12 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   int msg_size = 0;
   // The vertex order in the loop is important as it's implicitly assumed to reduce communication cost
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    // TODO - possibly this map can be reused by doing erase() on each loop instance
     // inverse_map is essentially a mapping from ranks this particular vertex
     // needs to communicate to the neighbor vertices that reside on those ranks
     std::map<int, std::shared_ptr<std::vector<int>>> *inverse_map
         = new std::map<int, std::shared_ptr<std::vector<int>>>();
     // Populate inverse_map
-    for (const auto &kv : (*v->outnbr_lbl_to_world_rank)){
+    for (const auto &kv : (*v->outnbr_lbl_to_instance_rank)){
       int destined_label = kv.first;
       int destined_rank = kv.second;
       std::map<int, std::shared_ptr<std::vector<int>>>::iterator it = inverse_map->find(destined_rank);
@@ -335,23 +315,23 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   }
 
   // perf counter
-  if (world_proc_rank == 0){
-    std::cout<<"**Rank0 writing perf output to "<< out_file;
+  if (instance_id == 0 && instance_proc_rank == 0){
+    std::cout<<"** Instance 0 Rank 0 writing perf output to "<< out_file;
   }
-  all_msg_counts = new long[world_procs_count*world_procs_count];
-  my_msg_counts = new long[world_procs_count];
-  int rank_offset = world_proc_rank*world_procs_count;
+  all_msg_counts = new long[instance_procs_count*instance_procs_count];
+  my_msg_counts = new long[instance_procs_count];
+  int rank_offset = instance_proc_rank*instance_procs_count;
   for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)){
     my_msg_counts[kv.first] = (*kv.second)[0];
   }
-  MPI_Gather(my_msg_counts, world_procs_count, MPI_LONG, all_msg_counts, world_procs_count, MPI_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(my_msg_counts, instance_procs_count, MPI_LONG, all_msg_counts, instance_procs_count, MPI_LONG, 0, MPI_COMM_INSTANCE);
 
   std::ofstream out_fs;
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     out_fs.open(out_file);
-    for (int i = 0; i < world_procs_count; ++i){
-      for (int j = 0; j < world_procs_count; ++j){
-        out_fs << all_msg_counts[i*world_procs_count+j] << " ";
+    for (int i = 0; i < instance_procs_count; ++i){
+      for (int j = 0; j < instance_procs_count; ++j){
+        out_fs << all_msg_counts[i*instance_procs_count+j] << " ";
       }
       out_fs << std::endl;
     }
@@ -368,8 +348,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
 #ifdef LONG_DEBUG
   /* print how many message counts and what are destined vertex labels (in order) for each rank from me */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 6: msg_counts_and_labels [ \n" : " ";
-  debug_str.append("  r").append(std::to_string(world_proc_rank))
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 6: msg_counts_and_labels [ \n" : " ";
+  debug_str.append("  r").append(std::to_string(instance_proc_rank))
       .append(" msg_size=").append(std::to_string(msg_size)).append("[\n");
   for (const auto &pair : (*sendto_rank_to_msgcount_and_destined_labels)){
     std::shared_ptr<std::vector<int>> list = pair.second;
@@ -380,7 +360,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     debug_str.append("]\n");
   }
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
@@ -389,13 +369,13 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   // BEGIN ################
   start_ms = std::chrono::high_resolution_clock::now();
   int max_buffer_size = -1;
-  MPI_Allreduce(&msg_size, &max_buffer_size, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&msg_size, &max_buffer_size, 1, MPI_INT, MPI_MAX, MPI_COMM_INSTANCE);
   max_buffer_size += 1; // +1 to send msgSize
   recvfrom_rank_to_msgcount_and_destined_labels
       = new std::map<int, std::shared_ptr<std::vector<int>>>();
   int *buffer = new int[max_buffer_size];
-  for (int rank = 0; rank < world_procs_count; ++rank){
-    if (rank == world_proc_rank){
+  for (int rank = 0; rank < instance_procs_count; ++rank){
+    if (rank == instance_proc_rank){
       buffer[0] = msg_size;
       int idx = 1;
       for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)){
@@ -405,7 +385,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
         }
       }
     }
-    MPI_Bcast(buffer, max_buffer_size, MPI_INT, rank, MPI_COMM_WORLD);
+    MPI_Bcast(buffer, max_buffer_size, MPI_INT, rank, MPI_COMM_INSTANCE);
     int recv_msg_size = buffer[0];
 
     for (int i = 1; i <= recv_msg_size; ++i) {
@@ -413,7 +393,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
       if (val < 0 && val < -1 * (global_vertex_count)) {
         // It's the rank information
         int destined_rank = (-1 * val) - (global_vertex_count + 1);
-        if (destined_rank == world_proc_rank) {
+        if (destined_rank == instance_proc_rank) {
           // It'll always be a unique rank, so no need to check if exists
           std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels
               = std::make_shared<std::vector<int>>();
@@ -437,8 +417,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
 #ifdef LONG_DEBUG
   /* print how many message counts and what are destined vertex labels (in order) for me from each rank */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 7: msg_counts_and_labels [ \n" : " ";
-  debug_str.append("  r").append(std::to_string(world_proc_rank)).append("[\n");
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 7: msg_counts_and_labels [ \n" : " ";
+  debug_str.append("  r").append(std::to_string(instance_proc_rank)).append("[\n");
   for (const auto &pair : (*recvfrom_rank_to_msgcount_and_destined_labels)){
     std::shared_ptr<std::vector<int>> list = pair.second;
     debug_str.append("    recvs ").append(std::to_string((*list)[0])).append(" msgs from rank ").append(std::to_string(pair.first)).append(" destined labels [ ");
@@ -448,7 +428,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     debug_str.append("]\n");
   }
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && world_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
@@ -457,8 +437,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   // BEGIN ~~~~~~~~~~~~~~~~
   start_ms = std::chrono::high_resolution_clock::now();
   /* All-to-all-v modification */
-  rcounts = new int [world_procs_count];
-  rdisplas = new int [world_procs_count];
+  rcounts = new int [instance_procs_count];
+  rdisplas = new int [instance_procs_count];
 
   int total_recv_msg_count = 0;
   for (const auto &kv : (*recvfrom_rank_to_msgcount_and_destined_labels)) {
@@ -469,7 +449,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     total_recv_msg_count += msg_count;
   }
   rdisplas[0] = 0;
-  for (int i = 1; i < world_procs_count; ++i){
+  for (int i = 1; i < instance_procs_count; ++i){
     rdisplas[i] = rdisplas[i-1] + rcounts[i-1];
   }
   rbuff = std::shared_ptr<short>(new short[total_recv_msg_count*max_msg_size], std::default_delete<short[]>());
@@ -480,10 +460,6 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     int recvfrom_rank = kv.first;
     std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
     int msg_count = (*count_and_destined_vertex_labels)[0];
-
-    /*std::shared_ptr<short> b = std::shared_ptr<short>(
-        new short [BUFFER_OFFSET + msg_count * max_msg_size](), std::default_delete<short[]>());
-    (*recvfrom_rank_to_recv_buffer)[recvfrom_rank] = b;*/
 
     int current_msg = 0;
     for (int i = 1; i < count_and_destined_vertex_labels->size(); ){
@@ -517,8 +493,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
 #ifdef LONG_DEBUG
   /* print recvfrom_rank_to_recv_buffer */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 8: recvfrom_rank_to_recv_buffer [ \n" : "";
-  debug_str.append("  r").append(std::to_string(world_proc_rank)).append("[\n");
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 8: recvfrom_rank_to_recv_buffer [ \n" : "";
+  debug_str.append("  r").append(std::to_string(instance_proc_rank)).append("[\n");
   for (const auto &vertex : (*vertices)){
     debug_str.append("    vlabel ").append(std::to_string((*vertex).label)).append(" recvs [\n");
     for (auto &recv_buffer : (*(*vertex).recv_buffers)){
@@ -529,7 +505,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   }
   debug_str.append("  ]\n");
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && world_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
@@ -538,8 +514,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   // BEGIN ================
   start_ms = std::chrono::high_resolution_clock::now();
   /* All-to-all-v modification */
-  scounts = new int[world_procs_count];
-  sdisplas = new int[world_procs_count];
+  scounts = new int[instance_procs_count];
+  sdisplas = new int[instance_procs_count];
 
   int total_send_msg_count = 0;
   for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)) {
@@ -550,24 +526,10 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     total_send_msg_count += msg_count;
   }
   sdisplas[0] = 0;
-  for (int i = 1; i < world_procs_count; ++i){
+  for (int i = 1; i < instance_procs_count; ++i){
     sdisplas[i] = sdisplas[i-1] + scounts[i-1];
   }
   sbuff = std::shared_ptr<short>(new short[total_send_msg_count*max_msg_size], std::default_delete<short[]>());
-
-  /*sendto_rank_to_send_buffer = new std::map<int, std::shared_ptr<short>>();
-  for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)){
-    int sendto_rank = kv.first;
-    std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
-    int msg_count = (*count_and_destined_vertex_labels)[0];
-    std::shared_ptr<short> b = std::shared_ptr<short>(
-        new short[BUFFER_OFFSET + msg_count * max_msg_size](), std::default_delete<short[]>());
-    // msg_count is an integer, so we'll pack it as two short values
-    // to reconstruct the integer, do (firstHalf << 16) | (secondHalf & 0xffff)
-    b.get()[MSG_COUNT_OFFSET] = (short) (msg_count >> 16);
-    b.get()[MSG_COUNT_OFFSET+1] = (short) (msg_count & 0xffff);
-    (*sendto_rank_to_send_buffer)[sendto_rank] = b;
-  }*/
 
   std::map<int,int> *outrank_to_offset_factor = new std::map<int,int>();
   for (const std::shared_ptr<vertex> &vertex : (*vertices)){
@@ -580,8 +542,6 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
       }
       std::shared_ptr<vertex_buffer> vertex_send_buffer = (*vertex->outrank_to_send_buffer)[outrank];
       vertex_send_buffer->set_vertex_offset_factor((*outrank_to_offset_factor)[outrank]);
-      // TODO - let's use all-to-all-v style
-//      vertex_send_buffer->set_buffer((*sendto_rank_to_send_buffer)[outrank]);
       vertex_send_buffer->set_buffer(sbuff, sdisplas[outrank]);
     }
   }
@@ -590,8 +550,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
 #ifdef LONG_DEBUG
   /* print sendto_rank_to_send_buffer */
-  debug_str = (world_proc_rank==0) ? "DEBUG: find_nbrs: 9: sendto_rank_to_send_buffer [ \n" : "";
-  debug_str.append("  r").append(std::to_string(world_proc_rank)).append("[ ");
+  debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: find_nbrs: 9: sendto_rank_to_send_buffer [ \n" : "";
+  debug_str.append("  r").append(std::to_string(instance_proc_rank)).append("[ ");
   int recvfrom_rank_count = (int) recvfrom_rank_to_msgcount_and_destined_labels->size();
   int recv_msg_count = 0;
   for (const auto &kv : (*recvfrom_rank_to_msgcount_and_destined_labels)){
@@ -609,22 +569,11 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
       .append(std::to_string(send_msg_count));
   debug_str.append(" ]\n");
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && world_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif
   // END ================
-
-  /*int num_sendto_ranks = (int) ((sendto_rank_to_send_buffer->find(world_proc_rank) != sendto_rank_to_send_buffer->end())
-                           ? sendto_rank_to_send_buffer->size()-1
-                           : sendto_rank_to_send_buffer->size());
-  int num_recvfrom_ranks = (int) ((recvfrom_rank_to_recv_buffer->find(world_proc_rank) != recvfrom_rank_to_recv_buffer->end())
-                           ? recvfrom_rank_to_recv_buffer->size() - 1
-                           : recvfrom_rank_to_recv_buffer->size());
-  recv_req_offset = num_sendto_ranks;
-  total_reqs = num_sendto_ranks+num_recvfrom_ranks;
-  send_recv_reqs = new MPI_Request[total_reqs]();
-  send_recv_reqs_status = new MPI_Status[total_reqs]();*/
 
   delete outrank_to_offset_factor;
   delete sendto_rank_to_msgcount_and_destined_labels;
@@ -634,83 +583,36 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   delete label_to_vertex;
 }
 
-void parallel_ops::test_string_allreduce() {/* Allreduce string test */
-  std::string debug_str = "[hello";
-  if (world_proc_rank == 0){
-    debug_str = debug_str.append("wonderful");
-  }
-  debug_str.append(std::to_string(world_proc_rank)).append("]");
-  debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
-    std::cout << std::endl << std::string(debug_str) << std::endl;
-  }
-}
-
-void parallel_ops::test_isend_irecv() {/* test ISend/IRecv */
-  int *buff = new int[2]();
-  buff[0] = world_proc_rank;
-  int recvfrom_rank = world_proc_rank - 1;
-  if (recvfrom_rank < 0){
-    recvfrom_rank = world_procs_count - 1;
-  }
-
-  MPI_Request *requests = new MPI_Request[2]();
-  MPI_Irecv(&buff[1], 1, MPI_INT, recvfrom_rank, 99, MPI_COMM_WORLD, &requests[1]);
-
-  int sendto_rank = world_proc_rank + 1;
-  if (sendto_rank == world_procs_count) {
-    sendto_rank = 0;
-  }
-
-  MPI_Isend(&buff[0], 1, MPI_INT, sendto_rank, 99, MPI_COMM_WORLD, &requests[0]);
-
-  MPI_Status *status = new MPI_Status[2]();
-  MPI_Waitall(2, requests, status);
-
-  std::string debug_str = (world_proc_rank == 0) ? "DEBUG: find_nbrs: 10: ISend/Irecv [ \n" : "";
-  debug_str.append("  r").append(std::to_string(world_proc_rank)).append("[ ");
-  debug_str.append(std::to_string(buff[0])).append(" ").append(std::to_string(buff[1]));
-  debug_str.append(" ]\n");
-  debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
-    std::cout << std::endl << std::string(debug_str).append("]") << std::endl;
-  }
-
-  delete [] status;
-  delete [] requests;
-  delete [] buff;
-}
-
 void parallel_ops::print_timing(
     const std::chrono::time_point<std::chrono::high_resolution_clock> &start_ms,
     const std::chrono::time_point<std::chrono::high_resolution_clock> &end_ms,
     const std::string &msg) const {
   double duration_ms, avg_duration_ms, min_duration_ms, max_duration_ms;
   duration_ms = (ms_t(end_ms - start_ms)).count();
-  MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (world_proc_rank == 0){
+  MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_INSTANCE);
+  MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_INSTANCE);
+  MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_INSTANCE);
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
-             << " " << max_duration_ms << " " << (avg_duration_ms / world_procs_count) << "]" <<std::endl;
+             << " " << max_duration_ms << " " << (avg_duration_ms / instance_procs_count) << "]" <<std::endl;
   }
 }
 
 std::string parallel_ops::mpi_gather_string(std::string &str) {
   int len = (int) str.length();
-  int *lengths = new int[world_procs_count];
+  int *lengths = new int[instance_procs_count];
 
-  MPI_Allgather(&len, 1, MPI_INT, lengths, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Allgather(&len, 1, MPI_INT, lengths, 1, MPI_INT, MPI_COMM_INSTANCE);
 
-  int *displas = new int[world_procs_count];
+  int *displas = new int[instance_procs_count];
   int total_length = lengths[0];
   displas[0] = 0;
-  for (int i = 1; i < world_procs_count; ++i){
+  for (int i = 1; i < instance_procs_count; ++i){
     displas[i] = displas[i-1]+lengths[i-1];
     total_length += lengths[i];
   }
   char *result = new char[total_length];
-  MPI_Gatherv(str.c_str(), len, MPI_CHAR, result, lengths, displas, MPI_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Gatherv(str.c_str(), len, MPI_CHAR, result, lengths, displas, MPI_CHAR, 0, MPI_COMM_INSTANCE);
 
   std::string r = std::string(result);
 
@@ -720,47 +622,6 @@ std::string parallel_ops::mpi_gather_string(std::string &str) {
   return r;
 }
 
-void parallel_ops::send_msgs(int msg_size) {
-  /*msg_size_to_recv = msg_size;
-  int req_count = 0;
-  for (const auto &kv : (*sendto_rank_to_send_buffer)){
-    int sendto_rank = kv.first;
-    std::shared_ptr<short> buffer = kv.second;
-    buffer.get()[MSG_SIZE_OFFSET] = (short)msg_size;
-    int msg_count = ((buffer.get()[MSG_COUNT_OFFSET]) << 16 | (buffer.get()[MSG_COUNT_OFFSET+1] & 0xffff));
-    // This is different from buffer size, which is
-    // BUFFER_OFFSET + msg_count * max_msg_size
-    // Notice here we use msg_size instead of max_msg_size
-    int buffer_content_size = BUFFER_OFFSET + msg_count * msg_size;
-
-    if (sendto_rank == world_proc_rank){
-      // local copy
-      std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
-      std::copy(buffer.get(), buffer.get()+buffer_content_size, b.get());
-    } else {
-      MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, sendto_rank, world_proc_rank, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
-      ++req_count;
-    }
-  }*/
-}
-
-void parallel_ops::recv_msgs() {
-  /*int req_count = 0;
-  for (const auto &kv : (*recvfrom_rank_to_recv_buffer)){
-    int recvfrom_rank = kv.first;
-    std::shared_ptr<short> buffer = kv.second;
-    int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[recvfrom_rank])[0];
-    if (recvfrom_rank != world_proc_rank){
-      MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size_to_recv,
-                MPI_SHORT, recvfrom_rank, recvfrom_rank, MPI_COMM_WORLD,
-                &send_recv_reqs[req_count+recv_req_offset]);
-      ++req_count;
-    }
-  }
-
-  MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);*/
-}
-
 int parallel_ops::read_int(long byte_idx, char *f) {
   return (((unsigned char) f[byte_idx + 3] << 0))
          + ((unsigned char) (f[byte_idx + 2] << 8))
@@ -768,96 +629,9 @@ int parallel_ops::read_int(long byte_idx, char *f) {
          + ((unsigned char) (f[byte_idx + 0] << 24));
 
 }
-void parallel_ops::send_recv_msgs(int msg_size) {
-  /*for (int i = 0; i < world_procs_count; ++i){
-    for (int j = 0; j < world_procs_count; ++j){
-      if (world_proc_rank == i) {
-        if (sendto_rank_to_send_buffer->find(j) != sendto_rank_to_send_buffer->end()) {
-          // rank i sending to rank j
-          std::shared_ptr<short> buffer = (*sendto_rank_to_send_buffer)[j];
-          buffer.get()[MSG_SIZE_OFFSET] = (short) msg_size;
-          int msg_count = ((buffer.get()[MSG_COUNT_OFFSET]) << 16 | (buffer.get()[MSG_COUNT_OFFSET + 1] & 0xffff));
-          // This is different from buffer size, which is
-          // BUFFER_OFFSET + msg_count * max_msg_size
-          // Notice here we use msg_size instead of max_msg_size
-          int buffer_content_size = BUFFER_OFFSET + msg_count * msg_size;
-
-          if (world_proc_rank == j) {
-            // local copy
-            std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
-            std::copy(buffer.get(), buffer.get() + buffer_content_size, b.get());
-          } else {
-            MPI_Send(buffer.get(), buffer_content_size, MPI_SHORT, j, i, MPI_COMM_WORLD);
-          }
-        }
-      }
-      else if (world_proc_rank == j)
-      {
-        if (recvfrom_rank_to_recv_buffer->find(i) != recvfrom_rank_to_recv_buffer->end()) {
-          // rank j receiving from rank i
-          std::shared_ptr<short> buffer = (*recvfrom_rank_to_recv_buffer)[i];
-          int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[i])[0];
-          if (i != j) {
-            MPI_Recv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size,
-                     MPI_SHORT, i, i, MPI_COMM_WORLD, &send_recv_reqs_status[i]);
-          }
-        }
-      }
-    }
-  }
-
-  MPI_Barrier(MPI_COMM_WORLD);*/
-}
-
-void parallel_ops::send_recv_msgs_async(int msg_size) {
-  /*int req_count = 0;
-  for (int i = 0; i < world_procs_count; ++i){
-    for (int j = 0; j < world_procs_count; ++j){
-      if (world_proc_rank == i) {
-        if (sendto_rank_to_send_buffer->find(j) != sendto_rank_to_send_buffer->end()) {
-          // rank i sending to rank j
-          std::shared_ptr<short> buffer = (*sendto_rank_to_send_buffer)[j];
-          buffer.get()[MSG_SIZE_OFFSET] = (short) msg_size;
-          int msg_count = ((buffer.get()[MSG_COUNT_OFFSET]) << 16 | (buffer.get()[MSG_COUNT_OFFSET + 1] & 0xffff));
-          // This is different from buffer size, which is
-          // BUFFER_OFFSET + msg_count * max_msg_size
-          // Notice here we use msg_size instead of max_msg_size
-          int buffer_content_size = BUFFER_OFFSET + msg_count * msg_size;
-
-          if (world_proc_rank == j) {
-            // local copy
-            std::shared_ptr<short> b = (*recvfrom_rank_to_recv_buffer)[world_proc_rank];
-            std::copy(buffer.get(), buffer.get() + buffer_content_size, b.get());
-          } else {
-            MPI_Isend(buffer.get(), buffer_content_size, MPI_SHORT, j, i, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
-            ++req_count;
-          }
-        }
-      }
-      else if (world_proc_rank == j)
-      {
-        if (recvfrom_rank_to_recv_buffer->find(i) != recvfrom_rank_to_recv_buffer->end()) {
-          // rank j receiving from rank i
-          std::shared_ptr<short> buffer = (*recvfrom_rank_to_recv_buffer)[i];
-          int msg_count = (*(*recvfrom_rank_to_msgcount_and_destined_labels)[i])[0];
-          if (i != j) {
-            MPI_Irecv(buffer.get(), BUFFER_OFFSET + msg_count * msg_size,
-                      MPI_SHORT, i, i, MPI_COMM_WORLD, &send_recv_reqs[req_count]);
-            ++req_count;
-          }
-        }
-      }
-    }
-  }
-
-  assert(total_reqs == req_count);
-  MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
-  MPI_Barrier(MPI_COMM_WORLD);*/
-
-}
 
 void parallel_ops::update_counts_and_displas(int msg_size) {
-  for (int i = 0; i < world_procs_count; ++i){
+  for (int i = 0; i < instance_procs_count; ++i){
     scounts[i] *= msg_size;
     rcounts[i] *= msg_size;
     sdisplas[i] *= msg_size;
@@ -867,7 +641,7 @@ void parallel_ops::update_counts_and_displas(int msg_size) {
 }
 
 void parallel_ops::all_to_all_v() {
-  MPI_Alltoallv(sbuff.get(), scounts, sdisplas, MPI_SHORT, rbuff.get(), rcounts, rdisplas, MPI_SHORT, MPI_COMM_WORLD);
+  MPI_Alltoallv(sbuff.get(), scounts, sdisplas, MPI_SHORT, rbuff.get(), rcounts, rdisplas, MPI_SHORT, MPI_COMM_INSTANCE);
 }
 
 void parallel_ops::simple_graph_partition_binary(const char *file, int global_vertex_count, int global_edge_count,
@@ -875,17 +649,17 @@ void parallel_ops::simple_graph_partition_binary(const char *file, int global_ve
   std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
   start = std::chrono::high_resolution_clock::now();
 
-  int q = global_vertex_count/world_procs_count;
-  int r = global_vertex_count % world_procs_count;
-  int local_vertex_count = (world_proc_rank < r) ? q+1: q;
+  int q = global_vertex_count/instance_procs_count;
+  int r = global_vertex_count % instance_procs_count;
+  int local_vertex_count = (instance_proc_rank < r) ? q+1: q;
   my_vertex_count = local_vertex_count;
-  int skip_vertex_count = q*world_proc_rank + (world_proc_rank < r ? world_proc_rank : r);
+  int skip_vertex_count = q*instance_proc_rank + (instance_proc_rank < r ? instance_proc_rank : r);
 
 #ifndef NDEBUG
-  std::string debug_str = (world_proc_rank==0) ? "DEBUG: simple_graph_partition_binary: 1: q,r,localvc  [ " : " ";
+  std::string debug_str = (instance_id == 0 && instance_proc_rank==0) ? "DEBUG: simple_graph_partition_binary: 1: q,r,localvc  [ " : " ";
   debug_str.append("[").append(std::to_string(q)).append(",").append(std::to_string(r)).append(",").append(std::to_string(local_vertex_count)).append("] ");
   debug_str = mpi_gather_string(debug_str);
-  if (world_proc_rank == 0){
+  if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
   }
 #endif

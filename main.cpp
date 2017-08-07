@@ -55,12 +55,11 @@ std::shared_ptr<int> completion_vars = nullptr;
 int node_count = 1;
 int thread_count = 1;
 int max_msg_size = 500;
-int parallel_instance_id = 0;
 int parallel_instance_count = 1;
 int iter_bs = 1;
 int is_binary = 0;
 
-bool is_rank0 = false;
+bool is_instance0_rank0 = false;
 
 parallel_ops *p_ops;
 
@@ -90,10 +89,13 @@ int main(int argc, char **argv) {
     return ret;
   }
 
-  is_rank0 = (p_ops->get_world_proc_rank() == 0);
-
   std::vector<std::shared_ptr<vertex>> *vertices = nullptr;
-  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(), global_vertex_count, global_edge_count, vertices, is_binary);
+  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(),
+                                    global_vertex_count, global_edge_count,
+                                    vertices, is_binary, parallel_instance_count);
+
+  is_instance0_rank0 = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
+
   run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
@@ -114,9 +116,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_INPUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_INPUT)
       (CMD_OPTION_SHORT_PARTS, po::value<std::string>(), CMD_OPTION_DESCRIPTION_PARTS)
       (CMD_OPTION_SHORT_NC, po::value<int>(), CMD_OPTION_DESCRIPTION_NC)
-      (CMD_OPTION_SHORT_TC, po::value<int>(), CMD_OPTION_DESCRIPTION_TC)
       (CMD_OPTION_SHORT_MMS, po::value<int>(), CMD_OPTION_DESCRIPTION_MMS)
-      (CMD_OPTION_SHORT_PI, po::value<int>(), CMD_OPTION_DESCRIPTION_PI)
       (CMD_OPTION_SHORT_PIC, po::value<int>(), CMD_OPTION_DESCRIPTION_PIC)
       (CMD_OPTION_SHORT_IBS, po::value<int>(), CMD_OPTION_DESCRIPTION_IBS)
       (CMD_OPTION_SHORT_BIN, po::value<int>(), CMD_OPTION_DESCRIPTION_BIN)
@@ -127,7 +127,7 @@ int parse_args(int argc, char **argv) {
   po::store(po::parse_command_line(argc, (const char *const *) argv, desc), vm);
   po::notify(vm);
 
-  bool is_rank0 = p_ops->get_world_proc_rank() == 0;
+  bool is_world_rank0 = p_ops->world_proc_rank == 0;
   if (vm.count("help")) {
     std::cout << desc << "\n";
     return 1;
@@ -136,7 +136,7 @@ int parse_args(int argc, char **argv) {
   if (vm.count(CMD_OPTION_SHORT_VC)){
     global_vertex_count = vm[CMD_OPTION_SHORT_VC].as<int>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Vertex count not specified"<<std::endl;
     return -1;
   }
@@ -144,7 +144,7 @@ int parse_args(int argc, char **argv) {
   if (vm.count(CMD_OPTION_SHORT_EC)){
     global_edge_count = vm[CMD_OPTION_SHORT_EC].as<int>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Edge count not specified, ignoring edge count"<<std::endl;
     global_edge_count = -1;
   }
@@ -152,7 +152,7 @@ int parse_args(int argc, char **argv) {
   if(vm.count(CMD_OPTION_SHORT_K)){
     k = vm[CMD_OPTION_SHORT_K].as<int>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: K is not specified"<<std::endl;
     return -1;
   }
@@ -160,7 +160,7 @@ int parse_args(int argc, char **argv) {
   if(vm.count(CMD_OPTION_SHORT_DELTA)){
     delta = vm[CMD_OPTION_SHORT_DELTA].as<int>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Delta not specified"<<std::endl;
     return -1;
   }
@@ -168,7 +168,7 @@ int parse_args(int argc, char **argv) {
   if(vm.count(CMD_OPTION_SHORT_ALPHA)){
     alpha = vm[CMD_OPTION_SHORT_ALPHA].as<double>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Alpha not specified"<<std::endl;
     return -1;
   }
@@ -176,7 +176,7 @@ int parse_args(int argc, char **argv) {
   if(vm.count(CMD_OPTION_SHORT_EPSILON)){
     epsilon = vm[CMD_OPTION_SHORT_EPSILON].as<double>();
   } else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Epsilon not specified"<<std::endl;
     return -1;
   }
@@ -184,7 +184,7 @@ int parse_args(int argc, char **argv) {
   if (vm.count(CMD_OPTION_SHORT_INPUT)){
     input_file = vm[CMD_OPTION_SHORT_INPUT].as<std::string>();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Input file not specified"<<std::endl;
     return -1;
   }
@@ -192,52 +192,37 @@ int parse_args(int argc, char **argv) {
   if(vm.count(CMD_OPTION_SHORT_PARTS)){
     partition_file = vm[CMD_OPTION_SHORT_PARTS].as<std::string>().c_str();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Partition file not specified, assuming uniform rank partitioning"<<std::endl;
   }
 
   if(vm.count(CMD_OPTION_SHORT_NC)){
     node_count = vm[CMD_OPTION_SHORT_NC].as<int>();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Node count not specified"<<std::endl;
     return -1;
   }
   p_ops->node_count = node_count;
 
-  if(vm.count(CMD_OPTION_SHORT_TC)){
-    thread_count = vm[CMD_OPTION_SHORT_TC].as<int>();
-  }else {
-    if (is_rank0)
-      std::cout<<"INFO: Thread count not specified, assuming "<<thread_count<<std::endl;
-  }
-  p_ops->thread_count = thread_count;
-
   if(vm.count(CMD_OPTION_SHORT_MMS)){
     max_msg_size = vm[CMD_OPTION_SHORT_MMS].as<int>();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Max message size not specified, assuming "<<max_msg_size<<std::endl;
-  }
-
-  if(vm.count(CMD_OPTION_SHORT_PI)){
-    parallel_instance_id = vm[CMD_OPTION_SHORT_PI].as<int>();
-  }else {
-    if (is_rank0)
-      std::cout<<"INFO: Parallel instance id not specified, assuming "<<parallel_instance_id<<std::endl;
   }
 
   if(vm.count(CMD_OPTION_SHORT_PIC)){
     parallel_instance_count = vm[CMD_OPTION_SHORT_PIC].as<int>();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Parallel instance count not specified, assuming "<<parallel_instance_count<<std::endl;
   }
 
   if (vm.count(CMD_OPTION_SHORT_OUT)){
     out_file = vm[CMD_OPTION_SHORT_OUT].as<std::string>();
   }else {
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"ERROR: Output file not specified"<<std::endl;
     return -1;
   }
@@ -246,12 +231,12 @@ int parse_args(int argc, char **argv) {
     iter_bs = vm[CMD_OPTION_SHORT_IBS].as<int>();
   }else {
     iter_bs = 1;
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Iteration block size not specified, assuming "<<iter_bs<<std::endl;
   }
   max_msg_size = max_msg_size * iter_bs;
   p_ops->max_msg_size = max_msg_size;
-  if(is_rank0){
+  if(is_world_rank0){
     std::cout<<"INFO: Scaled max message size by iteration chunk size "<<max_msg_size<<std::endl;
   }
 
@@ -259,7 +244,7 @@ int parse_args(int argc, char **argv) {
     is_binary = vm[CMD_OPTION_SHORT_BIN].as<int>();
   }else {
     is_binary = 0;
-    if (is_rank0)
+    if (is_world_rank0)
       std::cout<<"INFO: Is binary not specified, assuming text"<<std::endl;
   }
 
@@ -272,7 +257,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string print_str = "\nINFO: Run program started on ";
   print_str.append(std::ctime(&start_prog_time));
   pretty_print_config(print_str);
-  if (is_rank0){
+  if (is_instance0_rank0){
     std::cout<<print_str;
   }
 
@@ -283,12 +268,12 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str = "  INFO: ";
   print_str.append(std::to_string(external_loops)).append(" external loops will be evaluated for epsilon ")
       .append(std::to_string(epsilon)).append("\n");
-  if (is_rank0){
+  if (is_instance0_rank0){
     std::cout<<print_str;
   }
 
   ticks_t start_loops = std::chrono::high_resolution_clock::now();
-  bool found_path = false;
+  bool found_path_globally_across_all_instances = false;
   init_comp(vertices);
 
   // Call parallel ops update count and displas
@@ -299,27 +284,28 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   for(int i = 0; i < external_loops; ++i){
     print_str = "  INFO: Start of external loop ";
     print_str.append(std::to_string(i+1)).append("\n");
-    if (is_rank0) std::cout<<print_str;
+    if (is_instance0_rank0) std::cout<<print_str;
 
     ticks_t start_loop = std::chrono::high_resolution_clock::now();
-    found_path = run_graph_comp(i, vertices);
+    // every rank in the parallel instance knows about found_path_globally_across_all_instances
+    found_path_globally_across_all_instances = run_graph_comp(i, vertices);
 
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
     print_str = "  INFO: End of external loop ";
     print_str.append(std::to_string(i+1)).append(" duration (ms) ").
         append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
-    if(is_rank0) std::cout<<print_str;
+    if(is_instance0_rank0) std::cout<<print_str;
 
-    if (found_path){
+    if (found_path_globally_across_all_instances){
       break;
     }
   }
 
   ticks_t end_loops = std::chrono::high_resolution_clock::now();
   print_str = "  INFO: Graph ";
-  print_str.append(found_path ? "contains " : "does not contain ").append("a ");
+  print_str.append(found_path_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
   print_str.append(std::to_string(k)).append("-path");
-  if (is_rank0) std::cout<<print_str<<std::endl;
+  if (is_instance0_rank0) std::cout<<print_str<<std::endl;
 
   print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
@@ -330,7 +316,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str.append("INFO: Run program ended on ");
   print_str.append(std::ctime(&start_prog_time));
 
-  if(is_rank0){
+  if(is_instance0_rank0){
     std::cout<<print_str;
   }
 }
@@ -352,16 +338,16 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   std::string print_str = gap;
   print_str.append("INFO: Init loop duration (ms) ");
   print_str.append(std::to_string((ms_t(running_ticks - start_ticks)).count())).append("\n");
-  if(is_rank0) std::cout<<print_str;
+  if(is_instance0_rank0) std::cout<<print_str;
 
   // assume twoRaisedToK can be divisible by ParallelOps.parallelInstanceCount
   int iterations_per_parallel_instance = two_raised_to_k / parallel_instance_count;
 
   print_str = gap;
-  print_str.append("INFO: Parallel instance ").append(std::to_string(parallel_instance_id))
+  print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" starting [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations").append("\n");
-  if(is_rank0) std::cout<<print_str;
+  if(is_instance0_rank0) std::cout<<print_str;
 
   ticks_t iterations_ticks = hrc_t::now();
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
@@ -370,12 +356,8 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
-    int final_iter = iter+(parallel_instance_id*iterations_per_parallel_instance);
-    int thread_id = 0;
-    // TODO - add threads here (update: no need, we already do threads later in the code)
-    // The difference if I did it here would be to have LRT threads
-    // per iteration.
-    run_super_steps(vertices, final_iter, thread_id);
+    int final_iter = iter+(p_ops->instance_id*iterations_per_parallel_instance);
+    run_super_steps(vertices, final_iter);
     running_ticks = hrc_t::now();
 
     print_str = gap;
@@ -383,26 +365,29 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
         .append("-").append(std::to_string(iter+iter_bs)).append("]")
         .append("/").append(std::to_string(iterations_per_parallel_instance))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
-    if (is_rank0) std::cout<<print_str;
+    if (is_instance0_rank0) std::cout<<print_str;
   }
   running_ticks = hrc_t::now();
 
   print_str = gap;
-  print_str.append("INFO: Parallel instance ").append(std::to_string(parallel_instance_id))
+  print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
       .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
-  if(is_rank0) std::cout<<print_str;
+  if(is_instance0_rank0) std::cout<<print_str;
 
   int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
-  int found_k_path_max;
-  MPI_Reduce(&found_k_path, &found_k_path_max, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+  int found_k_path_globally_across_all_instances;
+  // MPI_COMM_WORLD is valid here even when running on multiple parallel instances
+  // The idea is to see if any of the ranks in whole world has found a path
+  MPI_Allreduce(&found_k_path, &found_k_path_globally_across_all_instances, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-  return found_k_path_max > 0;
+  return found_k_path_globally_across_all_instances > 0;
 }
 
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   long long per_loop_random_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  // MPI_COMM_WORLD is correct here even when running multiple parallel instances
   MPI_Bcast(&per_loop_random_seed, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 
   std::default_random_engine re(per_loop_random_seed);
@@ -434,7 +419,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   // equivalent in C++ is [0,two_raised_to_k - 1]
   std::uniform_int_distribution<int> uni_id_2tothek(0,two_raised_to_k-1);
   std::function<int()> gen_rnd_int = std::bind(uni_id_2tothek, re);
-  for (const auto &kv : (*p_ops->vertex_label_to_world_rank)){
+  for (const auto &kv : (*p_ops->vertex_label_to_instance_rank)){
     int label = kv.first;
     (*random_assignments)[label] = gen_rnd_int();
   }
@@ -448,7 +433,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, int thread_id) {
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter) {
   std::string gap = "      ";
   double process_recvd_time_ms = 0;
   double recv_time_ms = 0;
@@ -472,14 +457,14 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
        * iterations and super steps we can do this process received once
        * and be done with it */
       if (iter == 0 && ss < 2) {
-        process_recvd_msgs(vertices, ss, thread_id);
+        process_recvd_msgs(vertices, ss);
       }
       end_ticks = hrc_t::now();
       process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
     }
 
     start_ticks = hrc_t::now();
-    compute(iter, vertices, ss, thread_id);
+    compute(iter, vertices, ss);
     end_ticks = hrc_t::now();
     comp_time_ms += ms_t(end_ticks - start_ticks).count();
 
@@ -492,7 +477,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
   }
 
   start_ticks = hrc_t::now();
-  finalize_iteration(vertices, thread_id);
+  finalize_iteration(vertices);
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
 
@@ -523,8 +508,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
   print_timing(finalize_iter_time_ms, print_str);
 }
 
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
-#pragma omp parallel for
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
     vertex->compute(super_step, iter, completion_vars, random_assignments);
@@ -535,8 +519,7 @@ void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
   p_ops->all_to_all_v();
 }
 
-void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id) {
-#pragma omp parallel for
+void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
     vertex->process_recvd(super_step);
@@ -544,14 +527,13 @@ void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int supe
 }
 
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
-#pragma omp parallel for
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
     vertex->prepare_send(super_step);
   }
 }
 
-void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id) {
+void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices) {
   // TODO - introduce threads here
   for (const auto &vertex : (*vertices)){
     vertex->finalize_iteration();
@@ -594,12 +576,12 @@ void print_timing(
     const double duration_ms,
     const std::string &msg) {
   double avg_duration_ms, min_duration_ms, max_duration_ms;
-  MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (p_ops->get_world_proc_rank() == 0){
+  MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, p_ops->MPI_COMM_INSTANCE);
+  MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
+  MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, p_ops->MPI_COMM_INSTANCE);
+  if (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
-             << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->get_world_procs_count()) << "]" <<std::endl;
+             << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" <<std::endl;
   }
 }
 

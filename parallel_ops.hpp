@@ -22,27 +22,27 @@ public:
 //  const int BUFFER_OFFSET = 3;
   // Maximum message size sent by a vertex. To be set later correctly.
   int max_msg_size = 500;
-  int thread_count = 1;
   int node_count = 1;
 
   int my_vertex_displas = 0;
   int my_vertex_count = 0;
 
+  int world_proc_rank;
+  int world_procs_count;
+
+  MPI_Comm MPI_COMM_INSTANCE;
+  int instance_id;
+  int instance_proc_rank;
+  int instance_procs_count;
+
   std::shared_ptr<int> thread_id_to_vertex_offset = nullptr;
   std::shared_ptr<int> thread_id_to_vertex_count = nullptr;
-  std::shared_ptr<std::map<int,int>> vertex_label_to_world_rank = nullptr;
-
-  int get_world_proc_rank() const;
-  int get_world_procs_count() const;
+  std::shared_ptr<std::map<int,int>> vertex_label_to_instance_rank = nullptr;
 
   ~parallel_ops();
 
   void teardown_parallelism();
-  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary);
-  void send_msgs(int msg_size);
-  void recv_msgs();
-  void send_recv_msgs(int msg_size);
-  void send_recv_msgs_async(int msg_size);
+  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary, int pic);
   void update_counts_and_displas(int msg_size);
   void all_to_all_v();
 
@@ -52,14 +52,10 @@ private:
 //  const int MSG_COUNT_OFFSET = 0;
 //  const int MSG_SIZE_OFFSET = 2;
 
-  int world_proc_rank;
-  int world_procs_count;
 
-  int recv_req_offset;
+
   MPI_Request *send_recv_reqs = nullptr;
   MPI_Status *send_recv_reqs_status = nullptr;
-  int total_reqs;
-  int msg_size_to_recv;
 
   /* All-to-all-v buffers */
   int *sdisplas = nullptr;
@@ -75,8 +71,6 @@ private:
   long *all_msg_counts = nullptr;
 
   std::map<int, std::shared_ptr<std::vector<int>>> *recvfrom_rank_to_msgcount_and_destined_labels = nullptr;
-//  std::map<int, std::shared_ptr<short>> *recvfrom_rank_to_recv_buffer = nullptr;
-//  std::map<int, std::shared_ptr<short>> *sendto_rank_to_send_buffer = nullptr;
 
   parallel_ops(int world_proc_rank, int world_procs_count);
 
@@ -84,7 +78,6 @@ private:
   void simple_graph_partition_binary(const char* file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
   long read_vertices(std::vector<std::shared_ptr<vertex>> *vertices, int skip_vertex_count, std::ifstream &fs, long header_extent, long data_offset,
                      long data_extent, int *vertex_nbr_length, int *out_nbrs, long read_extent, int read_vertex, int i);
-  void decompose_among_threads(std::vector<std::shared_ptr<vertex>> *&vertices);
   void find_nbrs(int global_vertex_count, int local_vertex_count, std::vector<std::shared_ptr<vertex>> *&vertices);
   std::string mpi_gather_string(std::string &str);
 
@@ -93,9 +86,6 @@ private:
 
   int read_int(long byte_idx, char *f);
 
-  void test_isend_irecv();
-
-  void test_string_allreduce();
 };
 
 #endif //CLIONCPP_PARALLEL_OPS_H
