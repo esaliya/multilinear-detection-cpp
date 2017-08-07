@@ -22,12 +22,12 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices);
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, int thread_id);
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id);
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter);
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
-void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id);
+void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
-void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices, int thread_id);
+void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices);
 bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 
 void pretty_print_config(std::string &str);
