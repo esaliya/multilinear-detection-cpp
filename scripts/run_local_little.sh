@@ -4,7 +4,7 @@ k=3
 delta=1
 alpha=0.15
 epsilon=0.1
-input_file="/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/resources/my_little_graph_simple.txt"
+input_file="/Users/esaliya/sali/git/github/esaliya/ccpp/multilinear-detection-cpp/resources/my_little_graph_simple.txt"
 node_count=1
 thread_count=1
 
