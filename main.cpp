@@ -59,7 +59,7 @@ int parallel_instance_count = 1;
 int iter_bs = 1;
 int is_binary = 0;
 
-bool is_instance0_rank0 = false;
+bool is_print_rank = false;
 
 parallel_ops *p_ops;
 
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
                                     global_vertex_count, global_edge_count,
                                     vertices, is_binary, parallel_instance_count);
 
-  is_instance0_rank0 = (p_ops->instance_id == 1 && p_ops->instance_proc_rank == 0);
+  is_print_rank = (p_ops->instance_id == 1 && p_ops->instance_proc_rank == 0);
 
   run_program(vertices);
   delete vertices;
@@ -257,7 +257,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string print_str = "\nINFO: Run program started on ";
   print_str.append(std::ctime(&start_prog_time));
   pretty_print_config(print_str);
-  if (is_instance0_rank0){
+  if (is_print_rank){
     std::cout<<print_str;
   }
 
@@ -268,7 +268,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str = "  INFO: ";
   print_str.append(std::to_string(external_loops)).append(" external loops will be evaluated for epsilon ")
       .append(std::to_string(epsilon)).append("\n");
-  if (is_instance0_rank0){
+  if (is_print_rank){
     std::cout<<print_str;
   }
 
@@ -284,7 +284,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   for(int i = 0; i < external_loops; ++i){
     print_str = "  INFO: Start of external loop ";
     print_str.append(std::to_string(i+1)).append("\n");
-    if (is_instance0_rank0) std::cout<<print_str;
+    if (is_print_rank) std::cout<<print_str;
 
     ticks_t start_loop = std::chrono::high_resolution_clock::now();
     // every rank in the parallel instance knows about found_path_globally_across_all_instances
@@ -294,7 +294,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     print_str = "  INFO: End of external loop ";
     print_str.append(std::to_string(i+1)).append(" duration (ms) ").
         append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
-    if(is_instance0_rank0) std::cout<<print_str;
+    if(is_print_rank) std::cout<<print_str;
 
     if (found_path_globally_across_all_instances){
       break;
@@ -305,7 +305,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str = "  INFO: Graph ";
   print_str.append(found_path_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
   print_str.append(std::to_string(k)).append("-path");
-  if (is_instance0_rank0) std::cout<<print_str<<std::endl;
+  if (is_print_rank) std::cout<<print_str<<std::endl;
 
   print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
@@ -316,7 +316,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str.append("INFO: Run program ended on ");
   print_str.append(std::ctime(&start_prog_time));
 
-  if(is_instance0_rank0){
+  if(is_print_rank){
     std::cout<<print_str;
   }
 }
@@ -338,7 +338,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   std::string print_str = gap;
   print_str.append("INFO: Init loop duration (ms) ");
   print_str.append(std::to_string((ms_t(running_ticks - start_ticks)).count())).append("\n");
-  if(is_instance0_rank0) std::cout<<print_str;
+  if(is_print_rank) std::cout<<print_str;
 
   // assume twoRaisedToK can be divisible by ParallelOps.parallelInstanceCount
   int iterations_per_parallel_instance = two_raised_to_k / parallel_instance_count;
@@ -347,7 +347,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" starting [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations").append("\n");
-  if(is_instance0_rank0) std::cout<<print_str;
+  if(is_print_rank) std::cout<<print_str;
 
   ticks_t iterations_ticks = hrc_t::now();
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
@@ -365,7 +365,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
         .append("-").append(std::to_string(iter+iter_bs)).append("]")
         .append("/").append(std::to_string(iterations_per_parallel_instance))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
-    if (is_instance0_rank0) std::cout<<print_str;
+    if (is_print_rank) std::cout<<print_str;
   }
   running_ticks = hrc_t::now();
 
@@ -374,7 +374,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
       .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
-  if(is_instance0_rank0) std::cout<<print_str;
+  if(is_print_rank) std::cout<<print_str;
 
   int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
   int found_k_path_globally_across_all_instances;
@@ -579,7 +579,7 @@ void print_timing(
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, p_ops->MPI_COMM_INSTANCE);
-  if (is_instance0_rank0){
+  if (is_print_rank){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" <<std::endl;
   }
