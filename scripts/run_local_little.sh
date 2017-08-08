@@ -8,7 +8,7 @@ input_file="/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/resour
 node_count=1
 thread_count=1
 
-procs=3
-mpiexec -np $procs ../cmake-build-debug/main --v $vc --k $k --d $delta --a $alpha --e $epsilon --i $input_file --nc $node_count --tc $thread_count --out out.txt --mms 1  --ibs 4
+procs=4
+mpiexec -np $procs ../cmake-build-debug/main --v $vc --k $k --d $delta --a $alpha --e $epsilon --i $input_file --nc $node_count --tc $thread_count --out out.txt --mms 1  --ibs 2
 
 
