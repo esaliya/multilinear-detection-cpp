@@ -22,7 +22,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices);
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, int thread_id);
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter, int thread_id);
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step, int thread_id);
@@ -368,20 +368,27 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   assert(iterations_per_parallel_instance % iter_bs == 0);
 
   for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
-
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
     int final_iter = iter+(parallel_instance_id*iterations_per_parallel_instance);
+
     int thread_id = 0;
     // TODO - add threads here (update: no need, we already do threads later in the code)
     // The difference if I did it here would be to have LRT threads
     // per iteration.
-    run_super_steps(vertices, final_iter, thread_id);
+
+    print_str = gap;
+    print_str.append("  INFO: Starting iterations[[").append(std::to_string(final_iter+1))
+        .append("-").append(std::to_string(final_iter+iter_bs)).append("]/")
+        .append(std::to_string(two_raised_to_k)).append("]\n");
+    if (is_rank0) std::cout<<print_str;
+
+    run_super_steps(vertices, iter, final_iter, thread_id);
     running_ticks = hrc_t::now();
 
     print_str = gap;
-    print_str.append("  INFO: Iterations range [[").append(std::to_string(iter+1))
-        .append("-").append(std::to_string(iter+iter_bs)).append("]")
-        .append("/").append(std::to_string(iterations_per_parallel_instance))
+    print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter+1))
+        .append("-").append(std::to_string(final_iter+iter_bs)).append("]")
+        .append("/").append(std::to_string(two_raised_to_k))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
     if (is_rank0) std::cout<<print_str;
   }
@@ -448,7 +455,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, int thread_id) {
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter, int thread_id) {
   std::string gap = "      ";
   double process_recvd_time_ms = 0;
   double recv_time_ms = 0;
@@ -471,7 +478,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
       /* Assuming message size doesn't change with
        * iterations and super steps we can do this process received once
        * and be done with it */
-      if (iter == 0 && ss < 2) {
+      if (local_iter == 0 && ss < 2) {
         process_recvd_msgs(vertices, ss, thread_id);
       }
       end_ticks = hrc_t::now();
@@ -479,7 +486,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
     }
 
     start_ticks = hrc_t::now();
-    compute(iter, vertices, ss, thread_id);
+    compute(global_iter, vertices, ss, thread_id);
     end_ticks = hrc_t::now();
     comp_time_ms += ms_t(end_ticks - start_ticks).count();
 
@@ -496,7 +503,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter, i
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
 
-  gap.append("-- Iter ").append(std::to_string(iter+1));
+  gap.append("-- Iter [").append(std::to_string(global_iter+1)).append("-").append(std::to_string(global_iter+iter_bs)).append("] ");
 
   std::string print_str = gap;
   print_str.append(" comp:");
