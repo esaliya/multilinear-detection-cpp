@@ -314,6 +314,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     delete inverse_map;
   }
 
+#ifdef LONG_DEBUG
   // perf counter
   if (instance_id == 0 && instance_proc_rank == 0){
     std::cout<<"** Instance 0 Rank 0 writing perf output to "<< out_file;
@@ -337,6 +338,7 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
     }
   }
   out_fs.close();
+#endif
 
   delete [] all_msg_counts;
   all_msg_counts = nullptr;
