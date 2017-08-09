@@ -22,7 +22,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices);
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter);
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter);
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
                                     global_vertex_count, global_edge_count,
                                     vertices, is_binary, parallel_instance_count);
 
-  is_print_rank = (p_ops->instance_id == 1 && p_ops->instance_proc_rank == 0);
+  is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
 
   run_program(vertices);
   delete vertices;
@@ -357,13 +357,20 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
     int final_iter = iter+(p_ops->instance_id*iterations_per_parallel_instance);
-    run_super_steps(vertices, final_iter);
+
+    print_str = gap;
+    print_str.append("  INFO: Starting iterations[[").append(std::to_string(final_iter+1))
+        .append("-").append(std::to_string(final_iter+iter_bs)).append("]/")
+        .append(std::to_string(two_raised_to_k)).append("]\n");
+    if (is_print_rank) std::cout<<print_str;
+
+    run_super_steps(vertices, iter, final_iter);
     running_ticks = hrc_t::now();
 
     print_str = gap;
-    print_str.append("  INFO: Iterations range [[").append(std::to_string(iter+1))
-        .append("-").append(std::to_string(iter+iter_bs)).append("]")
-        .append("/").append(std::to_string(iterations_per_parallel_instance))
+    print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter+1))
+        .append("-").append(std::to_string(final_iter+iter_bs)).append("]")
+        .append("/").append(std::to_string(two_raised_to_k))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
     if (is_print_rank) std::cout<<print_str;
   }
@@ -433,7 +440,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter) {
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter) {
   std::string gap = "      ";
   double process_recvd_time_ms = 0;
   double recv_time_ms = 0;
@@ -456,7 +463,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter) {
       /* Assuming message size doesn't change with
        * iterations and super steps we can do this process received once
        * and be done with it */
-      if (iter == 0 && ss < 2) {
+      if (local_iter == 0 && ss < 2) {
         process_recvd_msgs(vertices, ss);
       }
       end_ticks = hrc_t::now();
@@ -464,7 +471,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter) {
     }
 
     start_ticks = hrc_t::now();
-    compute(iter, vertices, ss);
+    compute(global_iter, vertices, ss);
     end_ticks = hrc_t::now();
     comp_time_ms += ms_t(end_ticks - start_ticks).count();
 
@@ -481,7 +488,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int iter) {
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
 
-  gap.append("-- Iter ").append(std::to_string(iter+1));
+  gap.append("-- Iter ").append(std::to_string(global_iter+1));
 
   std::string print_str = gap;
   print_str.append(" comp:");

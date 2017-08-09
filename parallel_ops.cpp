@@ -437,22 +437,28 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   // BEGIN ~~~~~~~~~~~~~~~~
   start_ms = std::chrono::high_resolution_clock::now();
   /* All-to-all-v modification */
-  rcounts = new int [instance_procs_count];
-  rdisplas = new int [instance_procs_count];
+  rcounts = new int [instance_procs_count]();
+  rdisplas = new int [instance_procs_count]();
 
   int total_recv_msg_count = 0;
-  for (const auto &kv : (*recvfrom_rank_to_msgcount_and_destined_labels)) {
-    int recvfrom_rank = kv.first;
-    std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
-    int msg_count = (*count_and_destined_vertex_labels)[0];
-    rcounts[recvfrom_rank] = msg_count;
-    total_recv_msg_count += msg_count;
+  for (int i = 0; i < instance_procs_count; ++i){
+    auto it = recvfrom_rank_to_msgcount_and_destined_labels->find(i);
+    if (it == recvfrom_rank_to_msgcount_and_destined_labels->end()){
+      // This rank recvs nothing from rank i, so set dummy count to 1
+      rcounts[i] = 1;
+      ++total_recv_msg_count;
+    } else {
+      int msg_count = (*(it->second))[0];
+      rcounts[i] = msg_count;
+      total_recv_msg_count += msg_count;
+    }
   }
+
   rdisplas[0] = 0;
   for (int i = 1; i < instance_procs_count; ++i){
     rdisplas[i] = rdisplas[i-1] + rcounts[i-1];
   }
-  rbuff = std::shared_ptr<short>(new short[total_recv_msg_count*max_msg_size], std::default_delete<short[]>());
+  rbuff = std::shared_ptr<short>(new short[total_recv_msg_count*max_msg_size](), std::default_delete<short[]>());
 
 
 //  recvfrom_rank_to_recv_buffer = new std::map<int, std::shared_ptr<short>>();
@@ -514,22 +520,32 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   // BEGIN ================
   start_ms = std::chrono::high_resolution_clock::now();
   /* All-to-all-v modification */
-  scounts = new int[instance_procs_count];
-  sdisplas = new int[instance_procs_count];
+  // Note, some ranks won't have anything to send to some other ranks
+  // and sending count=0 with alltoallv is not working correctly, so
+  // send one dummy value for such cases. The good thing is we'll
+  // never be reading those dummy values because of the correct offsets
+  scounts = new int[instance_procs_count]();
+  sdisplas = new int[instance_procs_count]();
 
   int total_send_msg_count = 0;
-  for (const auto &kv : (*sendto_rank_to_msgcount_and_destined_labels)) {
-    int sendto_rank = kv.first;
-    std::shared_ptr<std::vector<int>> count_and_destined_vertex_labels = kv.second;
-    int msg_count = (*count_and_destined_vertex_labels)[0];
-    scounts[sendto_rank] = msg_count;
-    total_send_msg_count += msg_count;
+  for (int i = 0; i < instance_procs_count; ++i){
+    auto it = sendto_rank_to_msgcount_and_destined_labels->find(i);
+    if (it == sendto_rank_to_msgcount_and_destined_labels->end()){
+      // This rank sends nothing to rank i, so set the dummy count to 1
+      scounts[i] = 1;
+      ++total_send_msg_count;
+    } else {
+      int msg_count = (*(it->second))[0];
+      scounts[i] = msg_count;
+      total_send_msg_count += msg_count;
+    }
   }
+
   sdisplas[0] = 0;
   for (int i = 1; i < instance_procs_count; ++i){
     sdisplas[i] = sdisplas[i-1] + scounts[i-1];
   }
-  sbuff = std::shared_ptr<short>(new short[total_send_msg_count*max_msg_size], std::default_delete<short[]>());
+  sbuff = std::shared_ptr<short>(new short[total_send_msg_count*max_msg_size](), std::default_delete<short[]>());
 
   std::map<int,int> *outrank_to_offset_factor = new std::map<int,int>();
   for (const std::shared_ptr<vertex> &vertex : (*vertices)){
