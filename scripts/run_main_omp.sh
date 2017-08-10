@@ -1,2 +1,3 @@
 #!/bin/bash
-mpiexec -np 4 -ppn 2 -f ~/nodes.2n.b.txt ../build/main_omp
+# binary read
+mpirun -np 4  ../cmake-build-debug/main_omp 7 -1 /Users/esaliya/sali/git/github/esaliya/ccpp/multilinear-detection-cpp/resources/my_little_graph_simple.bin

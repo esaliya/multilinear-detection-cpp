@@ -22,6 +22,14 @@ typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
 
 typedef std::chrono::high_resolution_clock hrc_t;
 
+void int_max_test(){
+  std::cout<<INT32_MAX<<std::endl;
+
+  int x = 23;
+  int y = (x++)*2;
+  std::cout<<y<<" "<<x<<std::endl;
+}
+
 void openmp_parfor_test(){
   int size = 16777216;
   std::vector<double> *vec = new std::vector<double>((unsigned long) size);
@@ -571,7 +579,8 @@ void test(){
 }
 
 int main() {
-  openmp_parfor_test();
+  int_max_test();
+//  openmp_parfor_test();
 //  rnd_pointer_test();
 //  int_bitcount();
 //  pass_bind_test();

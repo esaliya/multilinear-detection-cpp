@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <fstream>
 #include "mpi.h"
+
 #define CHUNK_SIZE 134217728
 
 typedef std::chrono::duration<double, std::milli> ms_t;
@@ -11,11 +12,16 @@ typedef std::chrono::high_resolution_clock hrc_t;
 
 void print_timing(const std::chrono::time_point<std::chrono::high_resolution_clock> &start_ms,
                   const std::chrono::time_point<std::chrono::high_resolution_clock> &end_ms, const std::string &msg);
-void MPI_Bcast_chunk(int* arr, unsigned long length, int root, int rank);
+
+void MPI_Bcast_chunk(int *arr, unsigned long length, int root, int rank);
 
 void measure_bcast(int i, int rank);
+
 void measure_binary_read(long vc, long ec, char *file);
+
 void gather_test();
+
+int read_int(long idx, char *f);
 
 int world_proc_rank;
 int world_procs_count;
@@ -55,17 +61,17 @@ int main(int argc, char *argv[]) {
   }*/
 
 //  measure_bcast(i, rank);
-//  measure_binary_read(std::stol(argv[1]), std::stol(argv[2]), argv[3]);
-  gather_test();
+  measure_binary_read(std::stol(argv[1]), std::stol(argv[2]), argv[3]);
+//  gather_test();
   MPI::Finalize();
 
   return (0);
 }
 
-void gather_test(){
+void gather_test() {
   int *arr = nullptr;
-  if (world_proc_rank == 0){
-    arr = new int[world_procs_count*world_procs_count];
+  if (world_proc_rank == 0) {
+    arr = new int[world_procs_count * world_procs_count];
   }
   int *send_buff = new int[world_procs_count];
   for (int i = 0; i < world_procs_count; ++i) {
@@ -77,9 +83,9 @@ void gather_test(){
       std::cout << arr[i] << " ";
     }
   }
-  std::cout<<std::endl;
-  delete [] arr;
-  delete [] send_buff;
+  std::cout << std::endl;
+  delete[] arr;
+  delete[] send_buff;
 }
 
 
@@ -91,8 +97,8 @@ void measure_bcast(int i, int rank) {// Measure bcast timing for 13 GB of Friend
   print_timing(start, end, "Array creation (ms):");
 
   start = std::chrono::_V2::system_clock::now();
-  if (rank == 0){
-    for (i = 0; i < e; ++i){
+  if (rank == 0) {
+    for (i = 0; i < e; ++i) {
       src[i] = rank;
     }
   }
@@ -102,7 +108,7 @@ void measure_bcast(int i, int rank) {// Measure bcast timing for 13 GB of Friend
   for (i = 0; i < 20; ++i) {
     // Just to get cleaner timings on bcast
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0){
+    if (rank == 0) {
       std::cout << "Iteration: " << i << std::endl;
     }
     start = std::chrono::_V2::system_clock::now();
@@ -112,31 +118,26 @@ void measure_bcast(int i, int rank) {// Measure bcast timing for 13 GB of Friend
     print_timing(start, end, "Array bcast (ms):");
   }
 
-  delete [] src;
+  delete[] src;
 }
 
-void MPI_Bcast_chunk(int* arr, unsigned long length, int root, int rank)
-{
+void MPI_Bcast_chunk(int *arr, unsigned long length, int root, int rank) {
 #if DEBUG
   printf("%d MPI_B %d %lu\n", rank, root, length);
 #endif
 
-  if (length < CHUNK_SIZE)
-  {
+  if (length < CHUNK_SIZE) {
 #if DEBUG
     printf("%d MPI_B no chunk %d %lu\n", rank, root, length);
 #endif
     MPI_Bcast(arr, length, MPI_INT, root, MPI_COMM_WORLD);
-  }
-  else
-  {
+  } else {
     unsigned long num_bcasts = length / CHUNK_SIZE;
     unsigned long cur_off = 0;
 #if DEBUG
     printf("%d chunk numb %d %lu\n", rank, root, num_bcasts);
 #endif
-    for (int i = 0; i < num_bcasts; ++i)
-    {
+    for (int i = 0; i < num_bcasts; ++i) {
 #if DEBUG
       printf("%d doing b %d %lu\n", rank, root, cur_off);
 #endif
@@ -158,42 +159,66 @@ void MPI_Bcast_chunk(int* arr, unsigned long length, int root, int rank)
 void print_timing(
     const std::chrono::time_point<std::chrono::high_resolution_clock> &start_ms,
     const std::chrono::time_point<std::chrono::high_resolution_clock> &end_ms,
-    const std::string &msg)  {
+    const std::string &msg) {
   double duration_ms, avg_duration_ms, min_duration_ms, max_duration_ms;
   duration_ms = (ms_t(end_ms - start_ms)).count();
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (world_proc_rank == 0){
-    std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
-             << " " << max_duration_ms << " " << (avg_duration_ms / world_procs_count) << "]" <<std::endl;
+  if (world_proc_rank == 0) {
+    std::cout << msg << " [min max avg]ms: [" << min_duration_ms
+              << " " << max_duration_ms << " " << (avg_duration_ms / world_procs_count) << "]" << std::endl;
   }
 }
 
 void measure_binary_read(long vc, long ec, char *file) {
   long q = vc / world_procs_count;
   long r = vc % world_procs_count;
-  long my_vc = (world_proc_rank < r) ? q+1: q;
-  long skip_vc = q*world_proc_rank + (world_proc_rank < r ? world_proc_rank : r);
+  long my_vc = (world_proc_rank < r) ? q + 1 : q;
+  long skip_vc = q * world_proc_rank + (world_proc_rank < r ? world_proc_rank : r);
 
   int size_of_int = sizeof(int);
-  std::cout<<"size_of_int: "<< size_of_int<<std::endl;
-  long header_length = vc  * 2;
-  char *header = new char[header_length*size_of_int];
+  std::cout << "size_of_int: " << size_of_int << std::endl;
+  long header_length = vc * 2;
+  char *header = new char[header_length * size_of_int];
 
   std::ifstream binary(file, std::ios::in | std::ios::binary);
   binary.read(header, size_of_int * header_length);
 
-  if (world_proc_rank == 0){
+  if (world_proc_rank == 0) {
     for (int i = 0; i < 10; ++i) {
-      int val = (((unsigned char)header[i*size_of_int+3]<<0))
-                + ((unsigned char)(header[i*size_of_int+2]<<8))
-                + ((unsigned char)(header[i*size_of_int+1]<<16))
-                + ((unsigned char)(header[i*size_of_int+0]<<24));
+      int val = read_int(i*size_of_int, header);
 //      int val = (header[i*size_of_int+0]<<0) | (header[i*size_of_int+1]<<8) | (header[i*size_of_int+2]<<16) | (header[i*size_of_int+3]<<24);
-      std::cout<<"val "<<i<<" "<<val<<std::endl;
+      std::cout << "val " << i << " " << val << std::endl;
     }
   }
 
-  delete [] header;
+  // See if I can get the same values by using skip
+  if (world_proc_rank == 0) {
+    std::cout << "Now using skip"<<std::endl;
+  }
+  int read_block_size = 2;
+  char *tmp = new char[read_block_size * size_of_int];
+  for (int i = 0; i < 10; ++i) {
+    binary.seekg(i*read_block_size*size_of_int);
+    binary.read(tmp, read_block_size*size_of_int);
+    if (world_proc_rank == 0){
+      std::cout << "val read from skip " << i << " ";
+      for (int j = 0; j < read_block_size; ++j){
+        std::cout << read_int(j*size_of_int, tmp) << " ";
+      }
+      std::cout << std::endl;
+    }
+  }
+
+  delete[] tmp;
+  delete[] header;
+}
+
+int read_int(long idx, char *f) {
+  return (((unsigned char) f[idx + 3] << 0))
+         + ((unsigned char) (f[idx + 2] << 8))
+         + ((unsigned char) (f[idx + 1] << 16))
+         + ((unsigned char) (f[idx + 0] << 24));
+
 }

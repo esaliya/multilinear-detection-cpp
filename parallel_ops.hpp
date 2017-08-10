@@ -38,7 +38,7 @@ public:
   ~parallel_ops();
 
   void teardown_parallelism();
-  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
+  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary);
   void send_msgs(int msg_size);
   void recv_msgs();
 
@@ -69,6 +69,9 @@ private:
   parallel_ops(int world_proc_rank, int world_procs_count);
 
   void simple_graph_partition(const char* file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
+  void simple_graph_partition_binary(const char* file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
+  long read_vertices(std::vector<std::shared_ptr<vertex>> *vertices, int skip_vertex_count, std::ifstream &fs, long header_extent, long data_offset,
+                     long data_extent, int *vertex_nbr_length, int *out_nbrs, long read_extent, int read_vertex, int i);
   void decompose_among_threads(std::vector<std::shared_ptr<vertex>> *&vertices);
   void find_nbrs(int global_vertex_count, int local_vertex_count, std::vector<std::shared_ptr<vertex>> *&vertices);
   std::string mpi_gather_string(std::string &str);
@@ -76,7 +79,7 @@ private:
   void print_timing(const std::chrono::time_point<std::chrono::high_resolution_clock> &start_ms,
                     const std::chrono::time_point<std::chrono::high_resolution_clock> &end_ms, const std::string &msg) const;
 
-  int read_int(long idx, char *f);
+  int read_int(long byte_idx, char *f);
 
   void test_isend_irecv();
 

@@ -50,11 +50,15 @@ int parallel_ops::get_world_procs_count() const {
   return world_procs_count;
 }
 
-void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
+void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary) {
   // TODO - add logic to switch between different partition methods as well as txt vs binary files
   // for now let's assume simple partitioning with text files
   parallel_ops::out_file = out_file;
-  simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
+  if (is_binary){
+    simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
+  } else {
+    simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
+  }
   decompose_among_threads(vertices);
 }
 
@@ -704,10 +708,121 @@ void parallel_ops::recv_msgs() {
   MPI_Waitall(total_reqs, send_recv_reqs, send_recv_reqs_status);
 }
 
-int parallel_ops::read_int(long idx, char *f) {
-  return (((unsigned char)f[idx*4+3]<<0))
-         + ((unsigned char)(f[idx*4+2]<<8))
-         + ((unsigned char)(f[idx*4+1]<<16))
-         + ((unsigned char)(f[idx*4+0]<<24));
+int parallel_ops::read_int(long byte_idx, char *f) {
+  return (((unsigned char) f[byte_idx + 3] << 0))
+         + ((unsigned char) (f[byte_idx + 2] << 8))
+         + ((unsigned char) (f[byte_idx + 1] << 16))
+         + ((unsigned char) (f[byte_idx + 0] << 24));
 
+}
+
+void parallel_ops::simple_graph_partition_binary(const char *file, int global_vertex_count, int global_edge_count,
+                                                 std::vector<std::shared_ptr<vertex>> *&vertices) {
+  std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
+  start = std::chrono::high_resolution_clock::now();
+
+  int q = global_vertex_count/world_procs_count;
+  int r = global_vertex_count % world_procs_count;
+  int local_vertex_count = (world_proc_rank < r) ? q+1: q;
+  my_vertex_count = local_vertex_count;
+  int skip_vertex_count = q*world_proc_rank + (world_proc_rank < r ? world_proc_rank : r);
+
+#ifndef NDEBUG
+  std::string debug_str = (world_proc_rank==0) ? "DEBUG: simple_graph_partition_binary: 1: q,r,localvc  [ " : " ";
+  debug_str.append("[").append(std::to_string(q)).append(",").append(std::to_string(r)).append(",").append(std::to_string(local_vertex_count)).append("] ");
+  debug_str = mpi_gather_string(debug_str);
+  if (world_proc_rank == 0){
+    std::cout<<std::endl<<std::string(debug_str).append("]")<<std::endl;
+  }
+#endif
+
+  vertices = new std::vector<std::shared_ptr<vertex>>((unsigned long) local_vertex_count);
+
+  std::ifstream fs(file, std::ios::in | std::ios::binary);
+
+  int int_bytes = sizeof(int);
+  // each record is a tuple of integers (node-id, #nbrs+1), +1 is because in data we store node-weight as well
+  int header_record_size = 2;
+  long header_count = global_vertex_count * header_record_size;
+  long header_extent = header_count*int_bytes;
+  char *header = new char[header_extent];
+
+  fs.read(header, header_extent);
+
+  long data_offset = 0L;
+  long data_extent = 0L;
+  for (int i = 0; i < global_vertex_count; ++i){
+    if (skip_vertex_count == i){
+      break;
+    }
+    // RHS is #nbrs + 1 (for weight) + 1 (for node-id)
+    // #nbrs+1 is what you read from the header entry (i*header_record_size+1)
+    // This is the record length for vertex i in the binary file
+    // Think of this as the total number of splits for row i in the text version of the graph file
+    data_offset += read_int((i*header_record_size+1)*int_bytes, header)+1;
+  }
+  data_offset *= int_bytes;
+
+  int my_vertex_start_offset_in_header = skip_vertex_count*header_record_size;
+  int *vertex_nbr_length = new int[my_vertex_count];
+  int *out_nbrs = new int[global_vertex_count];
+  long running_extent;
+  long read_extent = 0L;
+  int read_vertex = -1;
+  for (int i = 0; i < my_vertex_count; ++i){
+    // my ith vertex's #nbrs+1 (+1 is for weight)
+    // the header entry (my_vertex_start_offset_in_header+1) contains #nbrs+1 value
+    int len = read_int((my_vertex_start_offset_in_header+i*header_record_size+1)*int_bytes, header);
+    vertex_nbr_length[i] = len-1;
+
+    running_extent = data_extent + ((long)len) + 1;
+    if (running_extent*int_bytes <= INT32_MAX){
+      data_extent = running_extent;
+    } else {
+      data_extent = read_vertices(vertices, skip_vertex_count, fs, header_extent, data_offset,
+                                data_extent, vertex_nbr_length, out_nbrs, read_extent, read_vertex, i);
+      read_extent += data_extent;
+      data_extent = (long)(len +1);
+      read_vertex = (i-1);
+    }
+  }
+  read_vertices(vertices, skip_vertex_count, fs, header_extent, data_offset,
+               data_extent, vertex_nbr_length, out_nbrs, read_extent, read_vertex, my_vertex_count);
+
+  end = std::chrono::high_resolution_clock::now();
+  print_timing(start, end, "simple_graph_partition_binary: graph_read");
+
+
+  start = std::chrono::high_resolution_clock::now();
+  find_nbrs(global_vertex_count, local_vertex_count, vertices);
+  end = std::chrono::high_resolution_clock::now();
+  print_timing(start, end, "simple_graph_partition_binary: find_nbrs total");
+
+  fs.close();
+  delete [] out_nbrs;
+  delete [] vertex_nbr_length;
+  delete [] header;
+}
+
+long
+parallel_ops::read_vertices(std::vector<std::shared_ptr<vertex>> *vertices, int skip_vertex_count, std::ifstream &fs,
+                            long header_extent, long data_offset, long data_extent, int *vertex_nbr_length,
+                            int *out_nbrs, long read_extent, int read_vertex, int i) {
+  int int_bytes = sizeof(int);
+  data_extent *= int_bytes;
+  char *data = new char[data_extent];
+  fs.seekg(data_offset+header_extent+read_extent);
+  fs.read(data, data_extent);
+  long idx = 0;
+  for (int j = read_vertex+1; j < i; ++j){
+    int vertex_label = read_int((idx++)*int_bytes, data);
+    double vertex_weight = read_int((idx++)*int_bytes, data);
+    for (int k = 0; k < vertex_nbr_length[j]; ++k){
+      out_nbrs[k] = read_int((idx++)*int_bytes, data);
+    }
+    (*vertices)[j] = std::make_shared<vertex>(vertex_label, vertex_weight, out_nbrs, vertex_nbr_length[j]);
+  }
+
+  delete [] data;
+  return data_extent;
 }

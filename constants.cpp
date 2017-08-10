@@ -47,3 +47,6 @@ const char *CMD_OPTION_DESCRIPTION_OUT = "Output file";
 
 const char *CMD_OPTION_SHORT_IBS = "ibs";
 const char *CMD_OPTION_DESCRIPTION_IBS = "Iteration block size";
+
+const char *CMD_OPTION_SHORT_BIN = "bin";
+const char *CMD_OPTION_DESCRIPTION_BIN = "Is binary";
