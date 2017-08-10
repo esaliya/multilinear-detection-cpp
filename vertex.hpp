@@ -138,11 +138,6 @@ public:
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
       msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
-//      msg->copy(b->get_buffer(), offset, msg->get_msg_size());
-      // TODO - debug - let's copy 4 dummy values
-      /*for (int i = 0; i < msg->get_msg_size(); ++i){
-        b->get_buffer().get()[(b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size()+i] = (short) i;
-      }*/
     }
     return msg->get_msg_size();
   }
