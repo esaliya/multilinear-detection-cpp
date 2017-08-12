@@ -210,6 +210,7 @@ public:
 
 private:
   int k;
+  int r;
   int iter_bs; // iteration block size
   int opt_tbl_length;
   std::shared_ptr<galois_field> gf;
