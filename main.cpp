@@ -332,8 +332,8 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
 
   /* Finding top k weights */
   std::priority_queue<double, std::vector<double>, std::greater<double>> min_pq;
-  double sbuff[k] = {0};
-  double rbuff[k*p_ops->instance_procs_count] = {0};
+  double *sbuff = new double[k]();
+  double *rbuff = new double[k*p_ops->instance_procs_count]();
   // find the top k weights from my vertices
   // Note, if my vertex count < k then that's fine too
   for (int i = 0; i < vertices->size(); ++i) {
@@ -370,6 +370,9 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
       min_pq.push(val);
     }
   }
+
+  delete [] sbuff;
+  delete [] rbuff;
 
   // summing up the top k weights
   double max_weight = 0;
