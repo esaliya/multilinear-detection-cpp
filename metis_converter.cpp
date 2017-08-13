@@ -37,13 +37,17 @@ int main(int argc, char *argv[]) {
   ticks_t end;
   int uniq_vc = 0;
   int missing_vc = 0;
+  std::string tmp;
+  // The first two lines are nc and ec, so skip them
+  getline(ifs, tmp);
+  getline(ifs, tmp);
   while (true){
     if (count == ec) break;
     getline(ifs, line, '\t');
-    if (line.c_str()[0] == '#') {
+   /* if (line.c_str()[0] == '#') {
       getline(ifs, line);
       continue;
-    }
+    }*/
 
     int src_v = std::stoi(line.c_str());
     getline(ifs, line);
