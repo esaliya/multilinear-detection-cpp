@@ -204,8 +204,16 @@ public:
     }
   }
 
-  bool finalize_iterations(){
-    return total_sum > 0;
+  double finalize_iterations(double alpha_max, int rounding_factor){
+    return -1.0;
+    // TODO - fix this method
+   /* // Now, we can change the totalSumTable to the decisionTable
+    for (int kPrime = 0; kPrime <= k; kPrime++) {
+      for (int rPrime = 0; rPrime <= r; rPrime++) {
+        totalSumTable[kPrime][rPrime] = (totalSumTable[kPrime][rPrime] > 0) ? 1 : -1;
+      }
+    }
+    return getScoreFromTablePower(totalSumTable, alphaMax, roundingFactor);*/
   }
 
 private:

@@ -21,7 +21,7 @@ namespace po = boost::program_options;
 int parse_args(int argc, char **argv);
 void run_program(std::vector<std::shared_ptr<vertex>> *vertices);
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
-bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
+double run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
 void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter);
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
@@ -29,7 +29,7 @@ void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices);
-bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
+double finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 
 void pretty_print_config(std::string &str);
 int log2(int x);
@@ -55,7 +55,6 @@ std::shared_ptr<int> completion_vars = nullptr;
 
 // default values;
 int node_count = 1;
-int thread_count = 1;
 int max_msg_size = 500;
 int parallel_instance_count = 1;
 int iter_bs = 1;
@@ -274,8 +273,8 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     std::cout<<print_str;
   }
 
+  double best_score = std::numeric_limits<double>::min();
   ticks_t start_loops = std::chrono::high_resolution_clock::now();
-  bool found_path_globally_across_all_instances = false;
   init_comp(vertices);
 
   // Call parallel ops update count and displas
@@ -289,25 +288,20 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     if (is_print_rank) std::cout<<print_str;
 
     ticks_t start_loop = std::chrono::high_resolution_clock::now();
-    // every rank in the parallel instance knows about found_path_globally_across_all_instances
-    found_path_globally_across_all_instances = run_graph_comp(i, vertices);
+    // every rank in the parallel instance knows about best_score
+    best_score = std::max(best_score, run_graph_comp(i, vertices));
 
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
     print_str = "  INFO: End of external loop ";
     print_str.append(std::to_string(i+1)).append(" duration (ms) ").
         append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
     if(is_print_rank) std::cout<<print_str;
-
-    if (found_path_globally_across_all_instances){
-      break;
-    }
   }
 
   ticks_t end_loops = std::chrono::high_resolution_clock::now();
   print_str = "  INFO: Graph ";
-  print_str.append(found_path_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
-  print_str.append(std::to_string(k)).append("-path");
-  if (is_print_rank) std::cout<<print_str<<std::endl;
+  print_str.append("best score ").append(std::to_string(best_score)).append("\n");
+  if (is_print_rank) std::cout<<print_str;
 
   print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
@@ -349,6 +343,10 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
     }
   }
 
+  for (const auto v : (*vertices)){
+    v->weight = std::ceil(log(((int)v->weight)+1)/log(rounding_factor));
+  }
+
   assert(min_pq.size() <= k);
   int size = (int) min_pq.size();
   for (int i = 0; i <size; ++i) {
@@ -386,14 +384,14 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
   assert(r >= 0);
 
   std::string print_str = "  INFO: ";
-  print_str.append(" max weight: ").append(std::to_string(max_weight)).append(" r: ")
+  print_str.append("max weight: ").append(std::to_string(max_weight)).append(" r: ")
       .append(std::to_string(r)).append("\n");
   if (is_print_rank){
     std::cout<<print_str;
   }
 }
 
-bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
+double run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string gap = "    ";
 
   ticks_t start_ticks = hrc_t::now();
@@ -448,13 +446,13 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
       .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
   if(is_print_rank) std::cout<<print_str;
 
-  int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
-  int found_k_path_globally_across_all_instances;
+  double best_score = finalize_iterations(vertices);
+  double best_score_max;
   // MPI_COMM_WORLD is valid here even when running on multiple parallel instances
   // The idea is to see if any of the ranks in whole world has found a path
-  MPI_Allreduce(&found_k_path, &found_k_path_globally_across_all_instances, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&best_score, &best_score_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
-  return found_k_path_globally_across_all_instances > 0;
+  return best_score_max;
 }
 
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
@@ -606,22 +604,17 @@ void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
 }
 
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices) {
-  // TODO - introduce threads here
   for (const auto &vertex : (*vertices)){
     vertex->finalize_iteration();
   }
 }
 
-bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices) {
-  // Note, we can't break the loop after finding on true
-  // because the finalize_iterations() need to be called on all vertices
-  bool found_k_path = false;
+double finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices) {
+  double best_score = std::numeric_limits<double>::min();
   for (const auto &v : (*vertices)) {
-    if (v->finalize_iterations()) {
-      found_k_path = true;
-    }
+    best_score = std::max(best_score, v->finalize_iterations(alpha, rounding_factor));
   }
-  return found_k_path;
+  return best_score;
 }
 
 void pretty_print_config(std::string &str){
