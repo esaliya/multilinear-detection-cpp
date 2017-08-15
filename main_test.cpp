@@ -23,6 +23,55 @@ typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
 
 typedef std::chrono::high_resolution_clock hrc_t;
 
+
+unsigned int Integer_bitCount_test_internal(unsigned int i){
+  // HD, Figure 5-2
+  i = i - ((i >> 1) & 0x55555555);
+  i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+  i = (i + (i >> 4)) & 0x0f0f0f0f;
+  i = i + (i >> 8);
+  i = i + (i >> 16);
+  return i & 0x3f;
+}
+
+void Integer_bitCount_test(){
+  int x = -7;
+  int y = x >> 1;
+  int z = (unsigned (x)) >> 1;
+
+  std::bitset<sizeof(int)*8> bs1((unsigned long long int) x);
+  std::bitset<sizeof(int)*8> bs2((unsigned long long int) y);
+  std::bitset<sizeof(int)*8> bs3((unsigned long long int) z);
+
+  std::cout<<x<<std::endl;
+  std::cout<<bs1<<std::endl;
+  std::cout<<bs1.count()<<std::endl;
+  std::cout<<Integer_bitCount_test_internal((unsigned)x)<<std::endl;
+
+
+  std::cout<<y<<std::endl;
+  std::cout<<bs2<<std::endl;
+  std::cout<<bs2.count()<<std::endl;
+  std::cout<<Integer_bitCount_test_internal((unsigned)y)<<std::endl;
+
+  std::cout<<z<<std::endl;
+  std::cout<<bs3<<std::endl;
+  std::cout<<bs3.count()<<std::endl;
+  std::cout<<Integer_bitCount_test_internal((unsigned)z)<<std::endl;
+}
+
+void std_fill_test(){
+  int size = 10;
+  std::shared_ptr<int> arr = std::shared_ptr<int>(new int[size](), std::default_delete<int[]>());
+  std::fill_n(arr.get(), size, 37);
+  for (int i = 0; i < size; ++i){
+    std::cout<<arr.get()[i]<<" ";
+  }
+  std::cout<<std::endl;
+
+}
+
+
 template<typename T> void print_queue(T& q) {
   while(!q.empty()) {
     std::cout << q.top() << " ";
@@ -588,7 +637,9 @@ void test(){
 }
 
 int main() {
-  priority_q_test();
+  Integer_bitCount_test();
+//  std_fill_test();
+//  priority_q_test();
 //  openmp_parfor_test();
 //  rnd_pointer_test();
 //  int_bitcount();
