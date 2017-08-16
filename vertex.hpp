@@ -178,7 +178,7 @@ public:
     total_sum_tbl_length = (r+1)*(k+1);
     total_sum_tbl = std::shared_ptr<int>(new int[total_sum_tbl_length](), std::default_delete<int[]>());
     std::fill_n(total_sum_tbl.get(), total_sum_tbl_length, 0);
-    cumulative_completion_variables = std::shared_ptr<int>(new int[k](), std::default_delete<int[]>());
+    cumulative_completion_variables = std::shared_ptr<int>(new int[k*iter_bs](), std::default_delete<int[]>());
     // poly_arr is still one element for each iteration, so iter_bs length array
     poly_arr = new int[iter_bs];
     dim_rows = (k+1);
