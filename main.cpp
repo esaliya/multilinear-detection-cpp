@@ -55,7 +55,6 @@ std::shared_ptr<int> completion_vars = nullptr;
 
 // default values;
 int node_count = 1;
-int thread_count = 1;
 int max_msg_size = 500;
 int parallel_instance_count = 1;
 int iter_bs = 1;
@@ -332,8 +331,8 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
 
   /* Finding top k weights */
   std::priority_queue<double, std::vector<double>, std::greater<double>> min_pq;
-  double sbuff[k] = {0};
-  double rbuff[k*p_ops->instance_procs_count] = {0};
+  double *sbuff = new double[k]();
+  double *rbuff = new double[k*p_ops->instance_procs_count]();
   // find the top k weights from my vertices
   // Note, if my vertex count < k then that's fine too
   for (int i = 0; i < vertices->size(); ++i) {
@@ -347,6 +346,10 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
       }
       min_pq.push(val);
     }
+  }
+
+  for (const auto v : (*vertices)){
+    v->weight = std::ceil(log(((int)v->weight)+1)/log(rounding_factor));
   }
 
   assert(min_pq.size() <= k);
