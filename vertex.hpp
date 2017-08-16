@@ -164,12 +164,24 @@ public:
     dim_rows = (k+1);
     dim_cols = (r+1);
 
-    // opt_table now contains entries for iter_bs iterations
-    // elements i of each iteration are kept near
-    // i.e. opt_tbl[0,(iter_bs-1)] are idx 0 values for iter_bs iterations
-    // other indices follow the same rule
-    opt_ext_tbl_length = (k+1)*iter_bs;
-    opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
+    // We need a (k+1) x (r+1) matrix for each iteration, so
+    // opt_table now contains matrices for iter_bs iterations.
+    // All rows of each matrix are kept near,
+    // i.e. opt_tbl[0,(((k+1)*(r+1))-1)] are rows of
+    // matrix of iteration 0.
+    // other indices follow the same convention
+    // in a picture, this looks like,
+    //   |<-all rows iter0->| |<-all rows iter1->|        |<-all rows iter_bs-1->|
+    //   |<-- k+1 entries ->|
+    // [ [[r+1][r+1]...[r+1]] [[r+1][r+1]...[r+1]] ......   [[r+1][r+1]...[r+1]]   ]
+    opt_ext_tbl_length = (r+1)*(k+1)*iter_bs;
+    opt_tbl = std::shared_ptr<short>(new short[opt_ext_tbl_length](), std::default_delete<short[]>());
+    // ext_tbl is similar to opt_tbl in dimensions and data storage format
+    ext_tbl = std::shared_ptr<short>(new short[opt_ext_tbl_length](), std::default_delete<short[]>());
+    // add all iterations into total sum, so it's (r+1)*(k+1) in length
+    total_sum_tbl_length = (r+1)*(k+1);
+    total_sum_tbl = std::shared_ptr<int>(new int[total_sum_tbl_length](), std::default_delete<int[]>());
+    std::fill_n(total_sum_tbl.get(), total_sum_tbl_length, 0);
     poly_arr = new int[iter_bs];
   }
 
