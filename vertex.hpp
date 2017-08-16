@@ -85,17 +85,19 @@ public:
   long uniq_rand_seed;
 
   // The index of data to send for next super step
-  int data_idx = 0;
+  int row_idx = 0;
 
   void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
     int I = super_step+1;
-    data_idx = I;
+    row_idx = I;
     if (super_step == 0){
-      reset(iter, random_assignments);
+      reset(iter, completion_vars, random_assignments);
     } else if (super_step > 0){
       int field_size = gf->get_field_size();
       reset_super_step();
-      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+
+      // TODO - fix compute logic
+/*      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         for (int i = 0; i < iter_bs; ++i) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
@@ -106,8 +108,9 @@ public:
 
       for (int i = 0; i < iter_bs; ++i) {
         opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
-      }
+      }*/
     }
+
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
 //    data.get()[0] = (short) label;
@@ -137,7 +140,7 @@ public:
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
-      msg->copy(b->get_buffer(), offset, data_idx, iter_bs);
+      msg->copy(b->get_buffer(), offset, row_idx, iter_bs);
     }
     return msg->get_msg_size();
   }
@@ -157,16 +160,20 @@ public:
     this->k = k;
     this->gf = gf;
     this->iter_bs = iter_bs;
+
+    dim_rows = (k+1);
+    dim_cols = (r+1);
+
     // opt_table now contains entries for iter_bs iterations
     // elements i of each iteration are kept near
     // i.e. opt_tbl[0,(iter_bs-1)] are idx 0 values for iter_bs iterations
     // other indices follow the same rule
-    opt_tbl_length = (k+1)*iter_bs;
+    opt_ext_tbl_length = (k+1)*iter_bs;
     opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
     poly_arr = new int[iter_bs];
   }
 
-  void reset(int iter, std::shared_ptr<std::map<int,int>> random_assignments){
+  void reset(int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int,int>> random_assignments){
     /* create the vertex unique random engine */
     // Note, in C++ the distribution is in closed interval [a,b]
     // whereas in Java it's [a,b), so the random.nextInt(fieldSize)
@@ -181,7 +188,7 @@ public:
     }
 
     // set arrays in vertex data
-    for (int i = 0; i < opt_tbl_length; ++i){
+    for (int i = 0; i < opt_ext_tbl_length; ++i){
       opt_tbl.get()[i] = 0;
     }
 
@@ -199,9 +206,10 @@ public:
   }
 
   void finalize_iteration(){
-    for (int i = 0; i < iter_bs; ++i) {
-      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k*iter_bs+i]);
-    }
+    // TODO - debug fix
+//    for (int i = 0; i < iter_bs; ++i) {
+//      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k*iter_bs+i]);
+//    }
   }
 
   double finalize_iterations(double alpha_max, int rounding_factor){
@@ -213,10 +221,14 @@ private:
   int k;
   int r;
   int iter_bs; // iteration block size
-  int opt_tbl_length;
+  int opt_ext_tbl_length;
+  int total_sum_tbl_length;
+  int dim_rows, dim_cols;
   std::shared_ptr<galois_field> gf;
   std::shared_ptr<short> opt_tbl = nullptr;
-  short total_sum;
+  std::shared_ptr<short> ext_tbl = nullptr;
+  std::shared_ptr<int> total_sum_tbl = nullptr;
+  std::shared_ptr<int> cumulative_completion_variables = nullptr;
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;
 
@@ -225,6 +237,34 @@ private:
     for (int i = 0; i < iter_bs; ++i){
       poly_arr[i] = 0;
     }
+  }
+
+  double BJ(double alpha, int anomalous_count, int set_size) {
+    return set_size * KL(((double) anomalous_count) / set_size, alpha);
+  }
+
+  double KL(double a, double b) {
+    assert(a >= 0 && a <= 1);
+    assert(b > 0 && b < 1);
+
+    // corner cases
+    if (a == 0) {
+      return log(1 / (1 - b));
+    }
+    if (a == 1) {
+      return log(1 / b);
+    }
+    return a * log(a / b) + (1 - a) * log((1 - a) / (1 - b));
+  }
+
+  // Converted method from Java Integer.bitCount(int i)
+  int bit_count(unsigned int i){
+    i = i - ((i >> 1) & 0x55555555);
+    i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
+    i = (i + (i >> 4)) & 0x0f0f0f0f;
+    i = i + (i >> 8);
+    i = i + (i >> 16);
+    return i & 0x3f;
   }
 };
 
