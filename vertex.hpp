@@ -204,8 +204,9 @@ public:
     }
   }
 
-  bool finalize_iterations(){
-    return total_sum > 0;
+  double finalize_iterations(double alpha_max, int rounding_factor){
+    // TODO - debug - let's return some double value for now
+    return label;
   }
 
 private:
