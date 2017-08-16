@@ -97,7 +97,8 @@ int main(int argc, char **argv) {
 
   is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
 
-  run_program(vertices);
+  // TODO - debug
+//  run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
   return 0;
@@ -416,6 +417,10 @@ double run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertice
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
   assert(iterations_per_parallel_instance % iter_bs == 0);
 
+
+  // TODO - debug
+  iterations_per_parallel_instance = 1;
+
   for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
@@ -427,7 +432,8 @@ double run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertice
         .append(std::to_string(two_raised_to_k)).append("]\n");
     if (is_print_rank) std::cout<<print_str;
 
-    run_super_steps(vertices, iter, final_iter);
+    // TODO - debug
+//    run_super_steps(vertices, iter, final_iter);
     running_ticks = hrc_t::now();
 
     print_str = gap;
@@ -515,6 +521,8 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   int worker_steps = max_iterations + 1;
 
+  // TODO - debug
+  worker_steps = 1;
   for (int ss = 0; ss < worker_steps; ++ss){
     if (ss > 0){
       start_ticks = hrc_t::now();

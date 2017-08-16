@@ -9,7 +9,7 @@ node_count=1
 thread_count=1
 
 #alltoallv-worlds
-procs=6
+procs=1
 mpiexec -np $procs ../cmake-build-debug/main --v $vc --k $k --d $delta --a $alpha --e $epsilon --i $input_file --nc $node_count --out out.txt --mms 20  --ibs 2 --pic 1
 
 
