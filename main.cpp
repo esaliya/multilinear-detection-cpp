@@ -5,6 +5,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <fstream>
+#include <queue>
 #include "parallel_ops.hpp"
 #include "constants.h"
 #include "utils.hpp"
@@ -37,7 +38,6 @@ void print_timing(const double duration,const std::string &msg);
 int global_vertex_count;
 int global_edge_count;
 int k;
-int r; // not used in k-path problem
 int delta;
 double alpha;
 double epsilon;
@@ -45,6 +45,8 @@ std::string input_file;
 std::string out_file;
 std::string partition_file;
 
+int r;
+int rounding_factor;
 int two_raised_to_k;
 std::shared_ptr<galois_field> gf = nullptr;
 int max_iterations;
@@ -277,7 +279,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   init_comp(vertices);
 
   // Call parallel ops update count and displas
-  p_ops->update_counts_and_displas(max_msg_size);
+  p_ops->update_counts_and_displas((r+1)*iter_bs);
 
   // TODO - debug - set external_loops to 1
   external_loops = 1;
@@ -322,10 +324,70 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
 }
 
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
+  rounding_factor = 1+delta;
   two_raised_to_k = 1 << k;
   max_iterations = k - 1;
   random_assignments = std::make_shared<std::map<int,int>>();
   completion_vars = std::shared_ptr<int>(new int[k-1](), std::default_delete<int[]>());
+
+  /* Finding top k weights */
+  std::priority_queue<double, std::vector<double>, std::greater<double>> min_pq;
+  double sbuff[k] = {0};
+  double rbuff[k*p_ops->instance_procs_count] = {0};
+  // find the top k weights from my vertices
+  // Note, if my vertex count < k then that's fine too
+  for (int i = 0; i < vertices->size(); ++i) {
+    double val = (*vertices)[i]->weight;
+    if (i < k) {
+      min_pq.push(val);
+    } else {
+      if (min_pq.top() > val) continue;
+      if (min_pq.size() == k) {
+        min_pq.pop();
+      }
+      min_pq.push(val);
+    }
+  }
+
+  assert(min_pq.size() <= k);
+  int size = (int) min_pq.size();
+  for (int i = 0; i <size; ++i) {
+    sbuff[i] = min_pq.top();
+    min_pq.pop();
+  }
+  assert(min_pq.size() == 0);
+  MPI_Allgather(sbuff, k, MPI_DOUBLE, rbuff, k, MPI_DOUBLE, p_ops->MPI_COMM_INSTANCE);
+  // find the top k weights from the collected top k*p_ops->instance_procs_count weights
+  for (int i = 0; i < k*p_ops->instance_procs_count; ++i) {
+    double val = rbuff[i];
+    if (i < k) {
+      min_pq.push(val);
+    } else {
+      if (min_pq.top() > val) continue;
+      if (min_pq.size() == k) {
+        min_pq.pop();
+      }
+      min_pq.push(val);
+    }
+  }
+
+  // summing up the top k weights
+  double max_weight = 0;
+  while (!min_pq.empty()){
+    max_weight += min_pq.top();
+    min_pq.pop();
+  }
+
+  // compute r based on max weight
+  r = (int) ceil(log(((int)max_weight) + 1) / log(rounding_factor));
+  assert(r >= 0);
+
+  std::string print_str = "  INFO: ";
+  print_str.append(" max weight: ").append(std::to_string(max_weight)).append(" r: ")
+      .append(std::to_string(r)).append("\n");
+  if (is_print_rank){
+    std::cout<<print_str;
+  }
 }
 
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {

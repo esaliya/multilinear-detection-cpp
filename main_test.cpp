@@ -12,6 +12,7 @@
 #include <boost/foreach.hpp>
 #include <set>
 #include <bitset>
+#include <queue>
 #include "test_map_class.hpp"
 #include "map_constructor.hpp"
 #include "polynomial.hpp"
@@ -21,6 +22,22 @@ typedef std::chrono::duration<double, std::micro> micros_t;
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
 
 typedef std::chrono::high_resolution_clock hrc_t;
+
+template<typename T> void print_queue(T& q) {
+  while(!q.empty()) {
+    std::cout << q.top() << " ";
+    q.pop();
+  }
+  std::cout << '\n';
+}
+
+void priority_q_test(){
+  std::priority_queue<int> pq;
+  for(int n : {1,8,5,6,3,4,0,9,7,2})
+    pq.push(n);
+
+  print_queue(pq);
+}
 
 void openmp_parfor_test(){
   int size = 16777216;
@@ -571,7 +588,8 @@ void test(){
 }
 
 int main() {
-  openmp_parfor_test();
+  priority_q_test();
+//  openmp_parfor_test();
 //  rnd_pointer_test();
 //  int_bitcount();
 //  pass_bind_test();
