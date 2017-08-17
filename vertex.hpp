@@ -158,6 +158,7 @@ public:
 
   void init(int k , int r, std::shared_ptr<galois_field> gf, int iter_bs){
     this->k = k;
+    this->r = r;
     this->gf = gf;
     this->iter_bs = iter_bs;
     // We need a (k+1) x (r+1) matrix for each iteration, so
