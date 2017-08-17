@@ -199,34 +199,49 @@ public:
   }
 
   void reset(int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int,int>> random_assignments){
-
-    // TODO - fix
     /* create the vertex unique random engine */
     // Note, in C++ the distribution is in closed interval [a,b]
     // whereas in Java it's [a,b), so the random.nextInt(fieldSize)
     // equivalent in C++ is [0,gf->get_field_size() - 1]
 
     // Note, now we need iter_bs of random engines
-//    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
-//    rnd_engine = new std::default_random_engine*[iter_bs];
-//    for (int i = 0; i < iter_bs; ++i){
-//      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
-//      rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
-//    }
-//
-//    // set arrays in vertex data
-//    for (int i = 0; i < opt_ext_tbl_length; ++i){
-//      opt_tbl.get()[i] = 0;
-//      ext_tbl.get()[i] = 0;
-//    }
-//
-//    int nodeWeight = (int)weight;
-//    for (int i = 0; i < iter_bs; ++i) {
-//      // dot product is bitwise 'and'
-//      int dot_product = (*random_assignments)[label] & (iter+i);
-//      int eigen_val = (bit_count((unsigned int)dot_product) % 2 == 1) ? 0 : 1;
-//      opt_tbl.get()[1*iter_bs+i] = (short) eigen_val;
-//    }
+    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
+    rnd_engine = new std::default_random_engine*[iter_bs];
+
+    // set arrays in vertex data
+    for (int i = 0; i < opt_ext_tbl_length; ++i){
+      opt_tbl.get()[i] = 0;
+      ext_tbl.get()[i] = 0;
+    }
+
+    int nodeWeight = (int)weight;
+    for (int i = 0; i < iter_bs; ++i){
+      // set 0th element of each iteration of cumulative_completion_variables to 1
+      cumulative_completion_variables.get()[i*k] = 1;
+      for (int j = 1; j < k; ++j){
+        // dot_product is bitwise "and"
+        int dot_product = completion_vars.get()[j-1] & (iter+i);
+        // dot_product should be positive or zero
+        assert(dot_product >= 0);
+        cumulative_completion_variables.get()[i*k+j]
+            = bit_count((unsigned int)dot_product) % 2 == 1
+              ? 0
+              : cumulative_completion_variables.get()[i*k+(j-1)];
+      }
+
+      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
+      rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
+
+      int dot_product = (*random_assignments)[label] * (iter+i);
+      int eigen_val = bit_count((unsigned int)dot_product) % 2 == 1 ? 0 : 1;
+      for (int j = 0; j <= r; ++j){
+        opt_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+j]
+            = ext_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+j] = 0;
+      }
+      opt_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+nodeWeight] = (short)eigen_val;
+      ext_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+nodeWeight]
+          = (short)(eigen_val * cumulative_completion_variables.get()[i*k+(k-1)]);
+    }
   }
 
   void finalize_iteration(){
