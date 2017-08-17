@@ -235,12 +235,14 @@ public:
 
       int dot_product = (*random_assignments)[label] * (iter+i);
       int eigen_val = bit_count((unsigned int)dot_product) % 2 == 1 ? 0 : 1;
-      for (int j = 0; j <= r; ++j){
-        opt_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+j]
-            = ext_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+j] = 0;
+      for (int j = 0; j < dim_cols; ++j){
+        int idx = ((i * dim_rows + 1) * dim_cols) + j;
+        opt_tbl.get()[idx] = ext_tbl.get()[idx] = 0;
       }
-      opt_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+nodeWeight] = (short)eigen_val;
-      ext_tbl.get()[i*dim_cols*dim_rows+1*dim_cols+nodeWeight]
+
+      int idx = ((i*dim_rows+1)*dim_cols)+nodeWeight;
+      opt_tbl.get()[idx] = (short)eigen_val;
+      ext_tbl.get()[idx]
           = (short)(eigen_val * cumulative_completion_variables.get()[i*k+(k-1)]);
     }
   }
