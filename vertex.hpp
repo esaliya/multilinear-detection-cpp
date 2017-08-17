@@ -19,11 +19,11 @@
 
 class vertex {
 public:
-  vertex(int label, double weight, int* outnbrs, int outnbrs_length){
+  vertex(int label, double weight, int *outnbrs, int outnbrs_length) {
     this->label = label;
     this->weight = weight;
-    outnbr_lbl_to_instance_rank = new std::map<int,int>();
-    outrank_to_send_buffer = new std::map<int,std::shared_ptr<vertex_buffer>>();
+    outnbr_lbl_to_instance_rank = new std::map<int, int>();
+    outrank_to_send_buffer = new std::map<int, std::shared_ptr<vertex_buffer>>();
     recv_buffers = new std::vector<std::shared_ptr<recv_vertex_buffer>>();
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
@@ -33,21 +33,21 @@ public:
     }
   }
 
-  vertex(std::vector<std::string> &tokens){
+  vertex(std::vector<std::string> &tokens) {
     this->label = std::stoi(tokens[0]);
     this->weight = std::stof(tokens[1]);
-    outnbr_lbl_to_instance_rank = new std::map<int,int>();
-    outrank_to_send_buffer = new std::map<int,std::shared_ptr<vertex_buffer>>();
+    outnbr_lbl_to_instance_rank = new std::map<int, int>();
+    outrank_to_send_buffer = new std::map<int, std::shared_ptr<vertex_buffer>>();
     recv_buffers = new std::vector<std::shared_ptr<recv_vertex_buffer>>();
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
 
-    for (int i = 2; i < tokens.size(); ++i){
+    for (int i = 2; i < tokens.size(); ++i) {
       (*outnbr_lbl_to_instance_rank)[std::stoi(tokens[i])] = -1;
     }
   }
 
-  ~vertex(){
+  ~vertex() {
     delete outnbr_lbl_to_instance_rank;
     outnbr_lbl_to_instance_rank = nullptr;
     delete outrank_to_send_buffer;
@@ -66,21 +66,21 @@ public:
         rnd_engine[i] = nullptr;
       }
     }
-    delete [] uni_int_dist;
+    delete[] uni_int_dist;
     uni_int_dist = nullptr;
-    delete [] rnd_engine;
+    delete[] rnd_engine;
     rnd_engine = nullptr;
-    delete [] poly_arr;
+    delete[] poly_arr;
     poly_arr = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
-  std::map<int,int>* outnbr_lbl_to_instance_rank = nullptr;
-  std::map<int,std::shared_ptr<vertex_buffer>>* outrank_to_send_buffer = nullptr;
-  std::vector<std::shared_ptr<recv_vertex_buffer>>* recv_buffers = nullptr;
+  std::map<int, int> *outnbr_lbl_to_instance_rank = nullptr;
+  std::map<int, std::shared_ptr<vertex_buffer>> *outrank_to_send_buffer = nullptr;
+  std::vector<std::shared_ptr<recv_vertex_buffer>> *recv_buffers = nullptr;
 
-  message* msg = nullptr;
-  std::vector<std::shared_ptr<message>>* recvd_msgs = nullptr;
+  message *msg = nullptr;
+  std::vector<std::shared_ptr<message>> *recvd_msgs = nullptr;
 
   int label;
   double weight;
@@ -89,12 +89,13 @@ public:
   // The index of data to send for next super step
   int row_idx = 0;
 
-  void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
-    int I = super_step+1;
+  void compute(int super_step, int iter, std::shared_ptr<int> completion_vars,
+               std::shared_ptr<std::map<int, int>> random_assignments) {
+    int I = super_step + 1;
     row_idx = I;
-    if (super_step == 0){
+    if (super_step == 0) {
       reset(iter, completion_vars, random_assignments);
-    } else if (super_step > 0){
+    } else if (super_step > 0) {
       int field_size = gf->get_field_size();
       reset_super_step();
 
@@ -138,34 +139,34 @@ public:
     }*/
   }
 
-  int prepare_send(int super_step){
-    for (const auto &kv : (*outrank_to_send_buffer)){
+  int prepare_send(int super_step) {
+    for (const auto &kv : (*outrank_to_send_buffer)) {
       std::shared_ptr<vertex_buffer> b = kv.second;
-      int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
+      int offset = (b->get_buffer_offset_factor() + b->get_vertex_offset_factor()) * msg->get_msg_size();
       msg->copy(b->get_buffer(), offset, row_idx);
     }
     return msg->get_msg_size();
   }
 
-  void process_recvd(int super_step){
-    for (int i = 0; i < recv_buffers->size(); ++i){
+  void process_recvd(int super_step) {
+    for (int i = 0; i < recv_buffers->size(); ++i) {
       std::shared_ptr<recv_vertex_buffer> b = (*recv_buffers)[i];
       std::shared_ptr<message> recvd_msg = (*recvd_msgs)[i];
       // Assume received msg size is as same as my send msg size
       recvd_msg->load(b->get_buffer(),
-                      (b->get_vertex_offset_factor()+b->get_buffer_offset_factor())*msg->get_msg_size(),
+                      (b->get_vertex_offset_factor() + b->get_buffer_offset_factor()) * msg->get_msg_size(),
                       msg->get_msg_size());
     }
   }
 
-  void init(int k , int r, std::shared_ptr<galois_field> gf, int iter_bs){
+  void init(int k, int r, std::shared_ptr<galois_field> gf, int iter_bs) {
     this->k = k;
     this->r = r;
     this->gf = gf;
     this->iter_bs = iter_bs;
 
-    dim_rows = (k+1);
-    dim_cols = (r+1);
+    dim_rows = (k + 1);
+    dim_cols = (r + 1);
 
     // We need a (k+1) x (r+1) matrix for each iteration, so
     // opt_table now contains matrices for iter_bs iterations.
@@ -177,86 +178,100 @@ public:
     //   |<-all rows iter0->| |<-all rows iter1->|        |<-all rows iter_bs-1->|
     //   |<-- k+1 entries ->|
     // [ [[r+1][r+1]...[r+1]] [[r+1][r+1]...[r+1]] ......   [[r+1][r+1]...[r+1]]   ]
-    opt_ext_tbl_length = dim_cols*dim_rows*iter_bs;
+    opt_ext_tbl_length = dim_cols * dim_rows * iter_bs;
     opt_tbl = std::shared_ptr<short>(
         new short[opt_ext_tbl_length](), std::default_delete<short[]>());
     // ext_tbl is similar to opt_tbl in dimensions and data storage format
     ext_tbl = std::shared_ptr<short>(
         new short[opt_ext_tbl_length](), std::default_delete<short[]>());
     // add all iterations into total sum, so it's (r+1)*(k+1) in length
-    total_sum_tbl_length = dim_cols*dim_rows;
+    total_sum_tbl_length = dim_cols * dim_rows;
     total_sum_tbl = std::shared_ptr<int>(new int[total_sum_tbl_length](), std::default_delete<int[]>());
     std::fill_n(total_sum_tbl.get(), total_sum_tbl_length, 0);
     cumulative_completion_variables = std::shared_ptr<int>(
-        new int[k*iter_bs](), std::default_delete<int[]>());
+        new int[k * iter_bs](), std::default_delete<int[]>());
     poly_arr = new int[iter_bs];
 
     msg->init(dim_rows, dim_cols, iter_bs);
     // msg_size is row size (i.e. dim_cols) * number of iterations
-    msg->set_data_and_msg_size(opt_tbl, dim_cols*iter_bs);
-    for (const auto &msg : (*recvd_msgs)){
+    msg->set_data_and_msg_size(opt_tbl, dim_cols * iter_bs);
+    for (const auto &msg : (*recvd_msgs)) {
       msg->recv_init(dim_rows, dim_cols, iter_bs);
     }
   }
 
-  void reset(int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int,int>> random_assignments){
+  void reset(int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments) {
     /* create the vertex unique random engine */
     // Note, in C++ the distribution is in closed interval [a,b]
     // whereas in Java it's [a,b), so the random.nextInt(fieldSize)
     // equivalent in C++ is [0,gf->get_field_size() - 1]
 
     // Note, now we need iter_bs of random engines
-    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
-    rnd_engine = new std::default_random_engine*[iter_bs];
+    uni_int_dist = new std::uniform_int_distribution<int> *[iter_bs];
+    rnd_engine = new std::default_random_engine *[iter_bs];
 
     // set arrays in vertex data
-    for (int i = 0; i < opt_ext_tbl_length; ++i){
+    for (int i = 0; i < opt_ext_tbl_length; ++i) {
       opt_tbl.get()[i] = 0;
       ext_tbl.get()[i] = 0;
     }
 
-    int nodeWeight = (int)weight;
-    for (int i = 0; i < iter_bs; ++i){
+    int nodeWeight = (int) weight;
+    for (int i = 0; i < iter_bs; ++i) {
       // set 0th element of each iteration of cumulative_completion_variables to 1
-      cumulative_completion_variables.get()[i*k] = 1;
-      for (int j = 1; j < k; ++j){
+      cumulative_completion_variables.get()[i * k] = 1;
+      for (int j = 1; j < k; ++j) {
         // dot_product is bitwise "and"
-        int dot_product = completion_vars.get()[j-1] & (iter+i);
+        int dot_product = completion_vars.get()[j - 1] & (iter + i);
         // dot_product should be positive or zero
         assert(dot_product >= 0);
-        cumulative_completion_variables.get()[i*k+j]
-            = bit_count((unsigned int)dot_product) % 2 == 1
+        cumulative_completion_variables.get()[i * k + j]
+            = bit_count((unsigned int) dot_product) % 2 == 1
               ? 0
-              : cumulative_completion_variables.get()[i*k+(j-1)];
+              : cumulative_completion_variables.get()[i * k + (j - 1)];
       }
 
-      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
+      uni_int_dist[i] = new std::uniform_int_distribution<int>(0, gf->get_field_size() - 1);
       rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
 
-      int dot_product = (*random_assignments)[label] * (iter+i);
-      int eigen_val = bit_count((unsigned int)dot_product) % 2 == 1 ? 0 : 1;
-      for (int j = 0; j < dim_cols; ++j){
+      int dot_product = (*random_assignments)[label] * (iter + i);
+      int eigen_val = bit_count((unsigned int) dot_product) % 2 == 1 ? 0 : 1;
+      for (int j = 0; j < dim_cols; ++j) {
         int idx = ((i * dim_rows + 1) * dim_cols) + j;
         opt_tbl.get()[idx] = ext_tbl.get()[idx] = 0;
       }
 
-      int idx = ((i*dim_rows+1)*dim_cols)+nodeWeight;
-      opt_tbl.get()[idx] = (short)eigen_val;
+      int idx = ((i * dim_rows + 1) * dim_cols) + nodeWeight;
+      opt_tbl.get()[idx] = (short) eigen_val;
       ext_tbl.get()[idx]
-          = (short)(eigen_val * cumulative_completion_variables.get()[i*k+(k-1)]);
+          = (short) (eigen_val * cumulative_completion_variables.get()[i * k + (k - 1)]);
     }
   }
 
-  void finalize_iteration(){
-    // TODO - debug fix
-//    for (int i = 0; i < iter_bs; ++i) {
-//      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k*iter_bs+i]);
-//    }
+  void finalize_iteration() {
+    // aggregate to master
+    // hmm, but we don't need to aggregate, just add to totalSumTable of the vertex
+    for (int i = 0; i < iter_bs; ++i) {
+      for (int kPrime = 0; kPrime <= k; kPrime++) {
+        for (int rPrime = 0; rPrime <= r; rPrime++) {
+          int idx = kPrime * dim_cols + rPrime;
+          total_sum_tbl.get()[idx] = gf->add(
+              total_sum_tbl.get()[idx],
+              ext_tbl.get()[i * dim_cols * dim_rows + idx]);
+        }
+      }
+    }
   }
 
-  double finalize_iterations(double alpha_max, int rounding_factor){
-    // TODO - debug - let's return some double value for now
-    return label;
+  double finalize_iterations(double alpha_max, int rounding_factor) {
+    // Now, we can change the totalSumTable to the decisionTable
+    for (int kPrime = 0; kPrime < dim_rows; kPrime++) {
+      for (int rPrime = 0; rPrime < dim_cols; rPrime++) {
+        int idx = kPrime*dim_cols+rPrime;
+        total_sum_tbl.get()[idx] = total_sum_tbl.get()[idx] > 0 ? 1 : -1;
+      }
+    }
+    return get_score_from_total_sum(alpha_max, rounding_factor);
   }
 
 private:
@@ -271,14 +286,35 @@ private:
   std::shared_ptr<short> ext_tbl = nullptr;
   std::shared_ptr<int> total_sum_tbl = nullptr;
   std::shared_ptr<int> cumulative_completion_variables = nullptr;
-  std::uniform_int_distribution<int>** uni_int_dist = nullptr;
-  std::default_random_engine** rnd_engine = nullptr;
+  std::uniform_int_distribution<int> **uni_int_dist = nullptr;
+  std::default_random_engine **rnd_engine = nullptr;
 
   int *poly_arr = nullptr;
-  void reset_super_step(){
-    for (int i = 0; i < iter_bs; ++i){
+
+  void reset_super_step() {
+    for (int i = 0; i < iter_bs; ++i) {
       poly_arr[i] = 0;
     }
+  }
+
+  // This is vertex local best score, not the global best
+  // to get the global best we have to find the max of these local best scores
+  double get_score_from_total_sum(double alpha_max, int rounding_factor) {
+    double vertex_local_best_score = 0;
+    for (int kPrime = 1; kPrime < dim_rows; kPrime++) {
+      for (int rPrime = 0; rPrime < dim_cols; rPrime++) {
+        int idx = kPrime*dim_cols+rPrime;
+        if (total_sum_tbl.get()[idx] == 1) {
+          // size cannot be smaller than weight
+          int unrounded_prize = (int) std::pow(rounding_factor, rPrime - 1);
+          // adjust for the fact that this is the refined graph
+          int unrounded_size = std::max(kPrime, unrounded_prize);
+          double score = BJ(alpha_max, unrounded_prize, unrounded_size);
+          vertex_local_best_score = std::max(vertex_local_best_score, score);
+        }
+      }
+    }
+    return vertex_local_best_score;
   }
 
   double BJ(double alpha, int anomalous_count, int set_size) {
@@ -300,7 +336,7 @@ private:
   }
 
   // Converted method from Java Integer.bitCount(int i)
-  int bit_count(unsigned int i){
+  int bit_count(unsigned int i) {
     i = i - ((i >> 1) & 0x55555555);
     i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
     i = (i + (i >> 4)) & 0x0f0f0f0f;
