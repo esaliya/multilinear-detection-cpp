@@ -58,11 +58,13 @@ public:
     msg = nullptr;
     delete recvd_msgs;
     recvd_msgs = nullptr;
-    for (int i = 0; i < iter_bs; ++i) {
-      delete uni_int_dist[i];
-      uni_int_dist[i] = nullptr;
-      delete rnd_engine[i];
-      rnd_engine[i] = nullptr;
+    if (uni_int_dist != nullptr && rnd_engine != nullptr) {
+      for (int i = 0; i < iter_bs; ++i) {
+        delete uni_int_dist[i];
+        uni_int_dist[i] = nullptr;
+        delete rnd_engine[i];
+        rnd_engine[i] = nullptr;
+      }
     }
     delete [] uni_int_dist;
     uni_int_dist = nullptr;
