@@ -27,9 +27,17 @@ public:
     this->buffer = buffer;
   }
 
-  short get(int i){
-    // TODO - fix
-    return -1;
+  short get(int i, int j, int iter, int current_row){
+    if (i == (current_row - 1)){
+      // picking from this->buffer
+      short val = buffer.get()[read_offset+(iter*dim_cols)+j];
+      // copy this to recvd_opt_tbl for future use
+      recvd_opt_tbl.get()[iter*dim_cols*dim_rows+i*dim_cols+j] = val;
+      return val;
+    } else {
+      // the requested value must be in recvd_opt_tbl
+      return recvd_opt_tbl.get()[iter*dim_cols*dim_rows+i*dim_cols+j];
+    }
   }
 
   int get_msg_size(){
