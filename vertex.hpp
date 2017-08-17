@@ -140,7 +140,7 @@ public:
     for (const auto &kv : (*outrank_to_send_buffer)){
       std::shared_ptr<vertex_buffer> b = kv.second;
       int offset = (b->get_buffer_offset_factor()+b->get_vertex_offset_factor())*msg->get_msg_size();
-      msg->copy(b->get_buffer(), offset, row_idx, iter_bs);
+      msg->copy(b->get_buffer(), offset, row_idx);
     }
     return msg->get_msg_size();
   }
@@ -174,47 +174,57 @@ public:
     //   |<-all rows iter0->| |<-all rows iter1->|        |<-all rows iter_bs-1->|
     //   |<-- k+1 entries ->|
     // [ [[r+1][r+1]...[r+1]] [[r+1][r+1]...[r+1]] ......   [[r+1][r+1]...[r+1]]   ]
-    opt_ext_tbl_length = (r+1)*(k+1)*iter_bs;
-    opt_tbl = std::shared_ptr<short>(new short[opt_ext_tbl_length](), std::default_delete<short[]>());
+    opt_ext_tbl_length = dim_cols*dim_rows*iter_bs;
+    opt_tbl = std::shared_ptr<short>(
+        new short[opt_ext_tbl_length](), std::default_delete<short[]>());
     // ext_tbl is similar to opt_tbl in dimensions and data storage format
-    ext_tbl = std::shared_ptr<short>(new short[opt_ext_tbl_length](), std::default_delete<short[]>());
+    ext_tbl = std::shared_ptr<short>(
+        new short[opt_ext_tbl_length](), std::default_delete<short[]>());
     // add all iterations into total sum, so it's (r+1)*(k+1) in length
-    total_sum_tbl_length = (r+1)*(k+1);
+    total_sum_tbl_length = dim_cols*dim_rows;
     total_sum_tbl = std::shared_ptr<int>(new int[total_sum_tbl_length](), std::default_delete<int[]>());
     std::fill_n(total_sum_tbl.get(), total_sum_tbl_length, 0);
+    cumulative_completion_variables = std::shared_ptr<int>(
+        new int[k*iter_bs](), std::default_delete<int[]>());
     poly_arr = new int[iter_bs];
+
+    msg->init(dim_rows, dim_cols, iter_bs);
+    // msg_size is row size (i.e. dim_cols) * number of iterations
+    msg->set_data_and_msg_size(opt_tbl, dim_cols*iter_bs);
+    for (const auto &msg : (*recvd_msgs)){
+      msg->recv_init(dim_rows, dim_cols, iter_bs);
+    }
   }
 
   void reset(int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int,int>> random_assignments){
+
+    // TODO - fix
     /* create the vertex unique random engine */
     // Note, in C++ the distribution is in closed interval [a,b]
     // whereas in Java it's [a,b), so the random.nextInt(fieldSize)
     // equivalent in C++ is [0,gf->get_field_size() - 1]
 
     // Note, now we need iter_bs of random engines
-    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
-    rnd_engine = new std::default_random_engine*[iter_bs];
-    for (int i = 0; i < iter_bs; ++i){
-      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
-      rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
-    }
-
-    // set arrays in vertex data
-    for (int i = 0; i < opt_ext_tbl_length; ++i){
-      opt_tbl.get()[i] = 0;
-    }
-
-    for (int i = 0; i < iter_bs; ++i) {
-      // dot product is bitwise 'and'
-      int dot_product = (*random_assignments)[label] & (iter+i);
-      std::bitset<sizeof(int) * 8> bs((unsigned int) dot_product);
-      int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
-      opt_tbl.get()[1*iter_bs+i] = (short) eigen_val;
-    }
-
-    msg->set_data_and_msg_size(opt_tbl, iter_bs);
-    // NOTE - let's not use this, see above
-//    msg->set_data_and_msg_size(opt_tbl, (k+1));
+//    uni_int_dist = new std::uniform_int_distribution<int>*[iter_bs];
+//    rnd_engine = new std::default_random_engine*[iter_bs];
+//    for (int i = 0; i < iter_bs; ++i){
+//      uni_int_dist[i] =  new std::uniform_int_distribution<int>(0, gf->get_field_size()-1);
+//      rnd_engine[i] = new std::default_random_engine(uniq_rand_seed);
+//    }
+//
+//    // set arrays in vertex data
+//    for (int i = 0; i < opt_ext_tbl_length; ++i){
+//      opt_tbl.get()[i] = 0;
+//      ext_tbl.get()[i] = 0;
+//    }
+//
+//    int nodeWeight = (int)weight;
+//    for (int i = 0; i < iter_bs; ++i) {
+//      // dot product is bitwise 'and'
+//      int dot_product = (*random_assignments)[label] & (iter+i);
+//      int eigen_val = (bit_count((unsigned int)dot_product) % 2 == 1) ? 0 : 1;
+//      opt_tbl.get()[1*iter_bs+i] = (short) eigen_val;
+//    }
   }
 
   void finalize_iteration(){
