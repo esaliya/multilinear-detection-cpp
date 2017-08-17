@@ -99,6 +99,66 @@ public:
       int field_size = gf->get_field_size();
       reset_super_step();
 
+      for (int i = 0; i < iter_bs; ++i){
+        // for every quota l from 0 to r
+        for (int l = 0; l < dim_cols; ++l) {
+          // initialize the polynomial P_{I,u,l}
+          poly_arr[i] = 0;
+          for (int iPrime = 1; iPrime < I; iPrime++) {
+            for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+              if (l == 0){
+                int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                int product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+0],
+                    msg->get((I-iPrime), 0, i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+              } else if (l == 1){
+                int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                int product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+1],
+                    msg->get((I-iPrime), 0, i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+
+                weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+0],
+                    msg->get((I-iPrime), 1, i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+              } else {
+                int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                int product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+(l-1)],
+                    msg->get((I-iPrime), (l-1), i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+
+                weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+l],
+                    msg->get((I-iPrime), 0, i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+
+                weight = (*uni_int_dist[i])(*rnd_engine[i]);
+                product = gf->multiply(
+                    opt_tbl.get()[i*dim_cols*dim_rows+iPrime*dim_cols+0],
+                    msg->get((I-iPrime), l, i, I));
+                product = gf->multiply(weight, product);
+                poly_arr[i] = gf->add(poly_arr[i], product);
+              }
+            }
+          }
+          opt_tbl.get()[i*dim_cols*dim_rows+I*dim_cols+l] = (short)poly_arr[i];
+          if (cumulative_completion_variables.get()[i*k+(k-I)] != 0){
+            int idx = i*dim_cols*dim_rows+I*dim_cols+l;
+            ext_tbl.get()[idx] = opt_tbl.get()[idx];
+          }
+        }
+      }
+
       // TODO - fix compute logic
 /*      for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         for (int i = 0; i < iter_bs; ++i) {
