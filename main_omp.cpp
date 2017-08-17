@@ -165,14 +165,14 @@ void max_allreduce_test() {
 */
   MPI_Barrier(MPI_COMM_WORLD);
 
-  int sbuff[k] = {0};
+  int *sbuff = new int[k]();
   int size = (int) min_pq_2.size();
   for (int i = 0; i <size; ++i) {
     sbuff[i] = min_pq_2.top();
     min_pq_2.pop();
   }
 
-  int rbuff[k*world_procs_count] = {0};
+  int *rbuff = new int[k*world_procs_count]();
   MPI_Allgather(sbuff, k, MPI_INT, rbuff, k, MPI_INT, MPI_COMM_WORLD);
 
   assert(min_pq_2.size() == 0);
@@ -195,6 +195,9 @@ void max_allreduce_test() {
   }
   MPI_Barrier(MPI_COMM_WORLD);
   print_queue(min_pq_2);
+
+  delete [] sbuff;
+  delete [] rbuff;
 
   /*debug_str = "Result Rank: ";
   debug_str.append(std::to_string(world_proc_rank)).append(" [ ");
