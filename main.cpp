@@ -33,6 +33,7 @@ bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 void pretty_print_config(std::string &str);
 int log2(int x);
 void print_timing(const double duration,const std::string &msg);
+void print_timing_global(const double duration,const std::string &msg);
 
 int global_vertex_count;
 int global_edge_count;
@@ -304,10 +305,10 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
    * times[3] += send_time_ms;
    * times[4] += finalize_iter_time_ms;
    */
-    print_timing(times[2], "    comp all iter: [min max avg]ms:");
-    print_timing(times[0], "    comm all iter: [min max avg]ms:");
-    print_timing(times[1]+times[3], "    mem copy all iter: [min max avg]ms:");
-    print_timing(times[2]+times[0]+times[1]+times[3], "    Total all iter: [min max avg]ms:");
+    print_timing_global(times[2], "    comp all iter: ");
+    print_timing_global(times[0], "    comm all iter: ");
+    print_timing_global(times[1]+times[3], "    mem copy all iter: ");
+    print_timing_global(times[2]+times[0]+times[1]+times[3], "    Total all iter: ");
 
     if (found_path_globally_across_all_instances){
       break;
@@ -608,6 +609,19 @@ void print_timing(
   if (is_print_rank){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" <<std::endl;
+  }
+}
+
+void print_timing_global(
+    const double duration_ms,
+    const std::string &msg) {
+  double avg_duration_ms, min_duration_ms, max_duration_ms;
+  MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (is_print_rank) {
+    std::cout << msg << " global[min max avg]ms: [" << min_duration_ms
+              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" << std::endl;
   }
 }
 
