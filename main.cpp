@@ -63,6 +63,7 @@ bool is_print_rank = false;
 
 parallel_ops *p_ops;
 
+double times[5] = {0};
 /*
 void poly_test(){
   std::shared_ptr<polynomial> p = std::make_shared<polynomial>();
@@ -310,11 +311,22 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
 
+  /*
+   * times[0] += recv_time_ms;
+  times[1] += process_recvd_time_ms;
+  times[2] += comp_time_ms;
+  times[3] += send_time_ms;
+  times[4] += finalize_iter_time_ms;
+   */
+  print_timing(times[2], "comp total: [min max avg]ms:");
+  print_timing(times[0], "comm total: [min max avg]ms:");
+  print_timing(times[1]+times[3], "mem copy total: [min max avg]ms:");
+
   ticks_t end_prog = std::chrono::high_resolution_clock::now();
   std::time_t end_prog_time = std::chrono::system_clock::to_time_t(end_prog);
 
   print_str.append("INFO: Run program ended on ");
-  print_str.append(std::ctime(&start_prog_time));
+  print_str.append(std::ctime(&end_prog_time));
 
   if(is_print_rank){
     std::cout<<print_str;
@@ -487,6 +499,12 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   finalize_iteration(vertices);
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
+
+  times[0] += recv_time_ms;
+  times[1] += process_recvd_time_ms;
+  times[2] += comp_time_ms;
+  times[3] += send_time_ms;
+  times[4] += finalize_iter_time_ms;
 
   gap.append("-- Iter ").append(std::to_string(global_iter+1));
 
