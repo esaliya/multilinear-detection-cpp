@@ -297,6 +297,17 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
         append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
     if(is_print_rank) std::cout<<print_str;
 
+    /* Timings are like this
+   * times[0] += recv_time_ms;
+   * times[1] += process_recvd_time_ms;
+   * times[2] += comp_time_ms;
+   * times[3] += send_time_ms;
+   * times[4] += finalize_iter_time_ms;
+   */
+    print_timing(times[2], "    comp total: [min max avg]ms:");
+    print_timing(times[0], "    comm total: [min max avg]ms:");
+    print_timing(times[1]+times[3], "    mem copy total: [min max avg]ms:");
+
     if (found_path_globally_across_all_instances){
       break;
     }
@@ -310,17 +321,6 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
 
   print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
-
-  /*
-   * times[0] += recv_time_ms;
-  times[1] += process_recvd_time_ms;
-  times[2] += comp_time_ms;
-  times[3] += send_time_ms;
-  times[4] += finalize_iter_time_ms;
-   */
-  print_timing(times[2], "comp total: [min max avg]ms:");
-  print_timing(times[0], "comm total: [min max avg]ms:");
-  print_timing(times[1]+times[3], "mem copy total: [min max avg]ms:");
 
   ticks_t end_prog = std::chrono::high_resolution_clock::now();
   std::time_t end_prog_time = std::chrono::system_clock::to_time_t(end_prog);
