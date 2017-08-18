@@ -330,9 +330,15 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   std::ofstream out_fs;
   if (instance_id == 0 && instance_proc_rank == 0){
     out_fs.open(out_file);
+    out_fs << "from/to rank ";
+    for (int i = 0; i < instance_procs_count; ++i){
+      out_fs << i << " ";
+    }
+    out_fs << std::endl;
     for (int i = 0; i < instance_procs_count; ++i){
       int total_out_degree = 0;
       int total_degree = 0;
+      out_fs << i << " ";
       for (int j = 0; j < instance_procs_count; ++j){
         long msg_count = all_msg_counts[i * instance_procs_count + j];
         out_fs << msg_count << " ";
