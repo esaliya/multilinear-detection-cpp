@@ -331,10 +331,17 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   if (instance_id == 0 && instance_proc_rank == 0){
     out_fs.open(out_file);
     for (int i = 0; i < instance_procs_count; ++i){
+      int total_out_degree = 0;
+      int total_degree = 0;
       for (int j = 0; j < instance_procs_count; ++j){
-        out_fs << all_msg_counts[i*instance_procs_count+j] << " ";
+        long msg_count = all_msg_counts[i * instance_procs_count + j];
+        out_fs << msg_count << " ";
+        total_degree += msg_count;
+        if (i != j){
+          total_out_degree += msg_count;
+        }
       }
-      out_fs << std::endl;
+      out_fs << total_degree << " " << total_out_degree << std::endl;
     }
   }
   out_fs.close();
