@@ -621,7 +621,7 @@ void print_timing_global(
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (is_print_rank) {
     std::cout << msg << " global[min max avg]ms: [" << min_duration_ms
-              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" << std::endl;
+              << " " << max_duration_ms << " " << (avg_duration_ms / MPI_COMM_WORLD) << "]" << std::endl;
   }
 }
 
