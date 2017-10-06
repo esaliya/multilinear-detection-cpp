@@ -3,7 +3,7 @@ project(clioncpp)
 
 
 find_package(MPI REQUIRED)
-find_package(Boost 1.63.0 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.64.0 COMPONENTS program_options REQUIRED)
 
 
 
