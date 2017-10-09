@@ -46,6 +46,9 @@ public:
   void update_counts_and_displas(int msg_size);
   void all_to_all_v();
 
+  /* Time collection functions */
+  void append_timings(double t, int at_rank, std::string &str);
+
   static parallel_ops * initialize(int *argc, char ***argv);
 
 private:
@@ -69,6 +72,9 @@ private:
   const char *out_file = nullptr;
   long *my_msg_counts = nullptr;
   long *all_msg_counts = nullptr;
+
+  /* timing counter */
+  std::shared_ptr<double> times = nullptr;
 
   std::map<int, std::shared_ptr<std::vector<int>>> *recvfrom_rank_to_msgcount_and_destined_labels = nullptr;
 

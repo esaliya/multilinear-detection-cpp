@@ -62,6 +62,9 @@ void parallel_ops::set_parallel_decomposition(const char *file, const char *out_
   MPI_Comm_size(MPI_COMM_INSTANCE, &instance_procs_count);
   assert(instance_procs_count == (world_procs_count/pic));
 
+  /* Allocate timing buffer */
+  times = std::shared_ptr<double>(new double[world_procs_count](), std::default_delete<double[]>());
+
   parallel_ops::out_file = out_file;
   if (is_binary){
     simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
@@ -784,4 +787,13 @@ parallel_ops::read_vertices(std::vector<std::shared_ptr<vertex>> *vertices, int 
 
   delete [] data;
   return data_extent;
+}
+
+void parallel_ops::append_timings(double t, int at_rank, std::string &str) {
+  MPI_Gather(&t, 1, MPI_DOUBLE, times.get(), 1, MPI_DOUBLE, at_rank, MPI_COMM_WORLD);
+  str.append("[ ");
+  for (int i = 0; i < world_procs_count; ++i){
+    str.append(std::to_string(times.get()[i])).append(" ");
+  }
+  str.append("]\n");
 }

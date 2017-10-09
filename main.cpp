@@ -32,8 +32,8 @@ bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 
 void pretty_print_config(std::string &str);
 int log2(int x);
-void print_timing(const double duration,const std::string &msg);
-void print_timing_global(const double duration,const std::string &msg);
+void print_timing(const double duration_ms,const std::string &msg);
+void print_timing_global(const double duration_ms,const std::string &msg);
 
 int global_vertex_count;
 int global_edge_count;
@@ -61,6 +61,7 @@ int iter_bs = 1;
 int is_binary = 0;
 
 bool is_print_rank = false;
+int print_rank = 0;
 
 parallel_ops *p_ops;
 
@@ -97,6 +98,7 @@ int main(int argc, char **argv) {
                                     vertices, is_binary, parallel_instance_count);
 
   is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
+  print_rank = 0;
 
   run_program(vertices);
   delete vertices;
@@ -286,17 +288,25 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   for(int i = 0; i < external_loops; ++i){
     print_str = "  INFO: Start of external loop ";
     print_str.append(std::to_string(i+1)).append("\n");
-    if (is_print_rank) std::cout<<print_str;
+    if (is_print_rank) {
+      std::cout<<print_str;
+    }
 
+    // Let's put a world barrier for cleaner timing
+    MPI_Barrier(MPI_COMM_WORLD);
     ticks_t start_loop = std::chrono::high_resolution_clock::now();
     // every rank in the parallel instance knows about found_path_globally_across_all_instances
     found_path_globally_across_all_instances = run_graph_comp(i, vertices);
 
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
     print_str = "  INFO: End of external loop ";
-    print_str.append(std::to_string(i+1)).append(" duration (ms) ").
-        append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
-    if(is_print_rank) std::cout<<print_str;
+    double duration = (ms_t(end_loop - start_loop)).count();
+    print_str.append(std::to_string(i + 1)).append(" duration (ms) ");
+    p_ops->append_timings(duration, print_rank, print_str);
+
+    if(is_print_rank) {
+        std::cout<<print_str;
+    }
 
     /* Timings are like this
    * times[0] += recv_time_ms;
