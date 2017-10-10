@@ -391,6 +391,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
   assert(iterations_per_parallel_instance % iter_bs == 0);
 
+  std::vector<double> times_vec;
   for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
@@ -406,20 +407,42 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     running_ticks = hrc_t::now();
 
     print_str = gap;
-    print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter+1))
+    duration = ms_t(running_ticks - iter_ticks).count();
+    times_vec.push_back(duration);
+
+    print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter + 1))
         .append("-").append(std::to_string(final_iter+iter_bs)).append("]")
         .append("/").append(std::to_string(two_raised_to_k))
-        .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
-    if (is_print_rank) std::cout<<print_str;
+        .append("] duration (ms) ").append(std::to_string(duration)).append("\n");
+
+    if (is_print_rank) {
+      std::cout<<print_str;
+    }
   }
   running_ticks = hrc_t::now();
 
   print_str = gap;
+  duration = ms_t(running_ticks - iterations_ticks).count();
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
-      .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
-  if(is_print_rank) std::cout<<print_str;
+      .append(std::to_string(duration)).append("\n");
+
+  times_str = times_str_prefix;
+  times_str.append(".2.1 Iteration");
+  std::string times_str_tmp;
+  for (int i = 0; i < times_vec.size(); ++i){
+    times_str_tmp = times_str;
+    times_str_tmp.append(std::to_string(i));
+    double v = times_vec[i];
+    p_ops->append_timings(v, print_rank, times_str_tmp);
+  }
+  times_str = times_str_tmp;
+  
+  if(is_print_rank){
+    std::cout<<print_str;
+    std::cout<<times_str;
+  }
 
   int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
   int found_k_path_globally_across_all_instances;
