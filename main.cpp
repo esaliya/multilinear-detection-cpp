@@ -358,15 +358,25 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
 
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string gap = "    ";
-
+  std::string times_str_prefix = "\nTIMES: 2";
+  
   ticks_t start_ticks = hrc_t::now();
   init_loop(vertices);
   ticks_t running_ticks = hrc_t::now();
 
   std::string print_str = gap;
   print_str.append("INFO: Init loop duration (ms) ");
-  print_str.append(std::to_string((ms_t(running_ticks - start_ticks)).count())).append("\n");
-  if(is_print_rank) std::cout<<print_str;
+  double duration = (ms_t(running_ticks - start_ticks)).count();
+  print_str.append(std::to_string(duration)).append("\n");
+
+  std::string times_str = times_str_prefix;
+  times_str.append(".1 InitLoop ");
+  p_ops->append_timings(duration, print_rank, times_str);
+
+  if(is_print_rank) {
+    std::cout<<print_str;
+    std::cout<<times_str;
+  }
 
   // assume twoRaisedToK can be divisible by ParallelOps.parallelInstanceCount
   int iterations_per_parallel_instance = two_raised_to_k / parallel_instance_count;
