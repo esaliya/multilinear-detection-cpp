@@ -301,11 +301,15 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
     print_str = "  INFO: End of external loop ";
     double duration = (ms_t(end_loop - start_loop)).count();
-    print_str.append(std::to_string(i + 1)).append(" duration (ms) ");
-    p_ops->append_timings(duration, print_rank, print_str);
+    print_str.append(std::to_string(i + 1)).append(" duration (ms) ")
+        .append(std::to_string(duration)).append("\n");
+
+    std::string times_str = "\nTIMES: 1 ExtLoop ";
+    p_ops->append_timings(duration, print_rank, times_str);
 
     if(is_print_rank) {
-        std::cout<<print_str;
+      std::cout<<print_str;
+      std::cout<<times_str;
     }
 
     /* Timings are like this
