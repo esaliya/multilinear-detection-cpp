@@ -115,7 +115,10 @@ int main(int argc, char **argv) {
   std::string perf_str = "PERF: recvbuffer-counts\n";
   if (is_print_rank){
     for (int i = 0; i < p_ops->instance_procs_count; ++i){
-      perf_str.append("instance-rank").append(std::to_string(i)).append(" [ ");
+      perf_str.append("instance-rank").append(std::to_string(i))
+          .append(" vcount")
+          .append(std::to_string(p_ops->local_vertex_counts.get()[i]))
+          .append(" [ ");
       for (int j = 0; j < p_ops->local_vertex_counts.get()[i]; ++j){
         perf_str.append(std::to_string(perf_all_recv_buffers_count[p_ops->local_vertex_displas.get()[i]+j])).append(" ");
       }
