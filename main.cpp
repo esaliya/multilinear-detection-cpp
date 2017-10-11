@@ -576,7 +576,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   std::string times_str_tmp;
   for (int i = 0; i < times_all[j].size(); ++i) {
     times_str_tmp = times_str;
-    times_str_tmp.append(std::to_string(i)).append(" ");
+    times_str_tmp.append(std::to_string(i)).append(" LocalIter").append(std::to_string(local_iter)).append(" ");
     p_ops->append_timings(times_all[j][i], print_rank, times_str_tmp);
     if (is_print_rank){
       std::cout<<times_str_tmp;
