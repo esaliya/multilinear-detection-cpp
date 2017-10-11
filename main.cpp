@@ -433,7 +433,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   std::string times_str_tmp;
   for (int i = 0; i < times_vec.size(); ++i){
     times_str_tmp = times_str;
-    times_str_tmp.append(std::to_string(i));
+    times_str_tmp.append(std::to_string(i)).append(" ");
     double v = times_vec[i];
     p_ops->append_timings(v, print_rank, times_str_tmp);
   }
@@ -503,57 +503,86 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
 
 void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter) {
   std::string gap = "      ";
+  std::string times_str_prefix = "\nTIMES: 3";
   double process_recvd_time_ms = 0;
   double recv_time_ms = 0;
   double comp_time_ms = 0;
   double send_time_ms = 0;
   double finalize_iter_time_ms = 0;
 
+  std::vector<double> times_all[5];
+  double duration;
+
   ticks_t start_ticks, end_ticks;
 
   int worker_steps = max_iterations + 1;
 
-  for (int ss = 0; ss < worker_steps; ++ss){
-    if (ss > 0){
+  for (int ss = 0; ss < worker_steps; ++ss) {
+    if (ss > 0) {
       start_ticks = hrc_t::now();
       recv_msgs(vertices, ss);
       end_ticks = hrc_t::now();
-      recv_time_ms += ms_t(end_ticks - start_ticks).count();
+      duration = ms_t(end_ticks - start_ticks).count();
+      times_all[0].push_back(duration);
+      recv_time_ms += duration;
 
       start_ticks = hrc_t::now();
       /* Assuming message size doesn't change with
-       * iterations and super steps we can do this process received once
+       * iterations and super steps, we can do this process received once
        * and be done with it */
       if (local_iter == 0 && ss < 2) {
         process_recvd_msgs(vertices, ss);
       }
       end_ticks = hrc_t::now();
-      process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
+      duration = ms_t(end_ticks - start_ticks).count();;
+      process_recvd_time_ms += duration;
+      times_all[1].push_back(duration);
     }
 
     start_ticks = hrc_t::now();
     compute(global_iter, vertices, ss);
     end_ticks = hrc_t::now();
-    comp_time_ms += ms_t(end_ticks - start_ticks).count();
+    duration = ms_t(end_ticks - start_ticks).count();
+    comp_time_ms += duration;
+    times_all[2].push_back(duration);
 
-    if (ss< worker_steps - 1){
+    if (ss < worker_steps - 1) {
       start_ticks = hrc_t::now();
       send_msgs(vertices, ss);
       end_ticks = hrc_t::now();
-      send_time_ms += ms_t(end_ticks - start_ticks).count();
+      duration = ms_t(end_ticks - start_ticks).count();
+      send_time_ms += duration;
+      times_all[3].push_back(duration);
     }
   }
 
   start_ticks = hrc_t::now();
   finalize_iteration(vertices);
   end_ticks = hrc_t::now();
-  finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
+  duration = ms_t(end_ticks - start_ticks).count();
+  finalize_iter_time_ms += duration;
+  times_all[4].push_back(duration);
 
   times[0] += recv_time_ms;
   times[1] += process_recvd_time_ms;
   times[2] += comp_time_ms;
   times[3] += send_time_ms;
   times[4] += finalize_iter_time_ms;
+
+  std::string time_names[5] = {".1.1 Recv", ".1.2 ProcRecv", ".1.3 Comp", ".1.4 Send", ".2 FinIter"};
+  for (int j = 0; j < 5; ++j) {
+  std::string times_str = times_str_prefix;
+  times_str.append(time_names[j]);
+  std::string times_str_tmp;
+  for (int i = 0; i < times_all[j].size(); ++i) {
+    times_str_tmp = times_str;
+    times_str_tmp.append(std::to_string(i)).append(" ");
+    p_ops->append_timings(times_all[j][i], print_rank, times_str_tmp);
+    if (is_print_rank){
+      std::cout<<times_str_tmp;
+    }
+  }
+}
 
   gap.append("-- Iter ").append(std::to_string(global_iter+1));
 
