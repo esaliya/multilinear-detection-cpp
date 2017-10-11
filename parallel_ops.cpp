@@ -154,8 +154,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   }
 #endif
 
-  int *local_vertex_counts = new int[instance_procs_count];
-  MPI_Allgather(&local_vertex_count, 1, MPI_INT, local_vertex_counts, 1, MPI_INT, MPI_COMM_INSTANCE);
+  local_vertex_counts = std::shared_ptr<int>(new int[instance_procs_count](), std::default_delete<int[]>());
+  MPI_Allgather(&local_vertex_count, 1, MPI_INT, local_vertex_counts.get(), 1, MPI_INT, MPI_COMM_INSTANCE);
 
   my_vertex_count = local_vertex_count;
 #ifdef LONG_DEBUG
@@ -169,13 +169,13 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   }
 #endif
 
-  int *local_vertex_displas = new int[instance_procs_count];
-  local_vertex_displas[0] = 0;
+  local_vertex_displas = std::shared_ptr<int>(new int[instance_procs_count](), std::default_delete<int[]>());
+  local_vertex_displas.get()[0] = 0;
   for (int i = 1; i < instance_procs_count; ++i){
-    local_vertex_displas[i] = local_vertex_displas[i-1]+local_vertex_counts[i-1];
+    local_vertex_displas.get()[i] = local_vertex_displas.get()[i-1]+local_vertex_counts.get()[i-1];
   }
 
-  my_vertex_displas = local_vertex_displas[instance_proc_rank];
+  my_vertex_displas = local_vertex_displas.get()[instance_proc_rank];
 
 #ifdef LONG_DEBUG
   /* Check local vertex displas */
@@ -190,12 +190,12 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
 
   start_ms = std::chrono::high_resolution_clock::now();
   int *global_vertex_labels = new int[global_vertex_count];
-  int offset = local_vertex_displas[instance_proc_rank];
+  int offset = local_vertex_displas.get()[instance_proc_rank];
   for (int i = 0; i < local_vertex_count; ++i){
     global_vertex_labels[i+offset] = (*vertices)[i]->label;
   }
   MPI_Allgatherv(MPI_IN_PLACE, local_vertex_count, MPI_INT, global_vertex_labels,
-                 local_vertex_counts, local_vertex_displas, MPI_INT, MPI_COMM_INSTANCE);
+                 local_vertex_counts.get(), local_vertex_displas.get(), MPI_INT, MPI_COMM_INSTANCE);
   end_ms = std::chrono::high_resolution_clock::now();
   print_timing(start_ms, end_ms, "find_nbr: global_vertex_labels allgather");
 
@@ -220,8 +220,8 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   vertex_label_to_instance_rank = std::make_shared<std::map<int,int>>();
   std::map<int,int> *label_to_instance_rank = new std::map<int,int>();
   for (int rank = 0; rank < instance_procs_count; ++rank){
-    for (int i = 0; i < local_vertex_counts[rank]; ++i){
-      offset = local_vertex_displas[rank];
+    for (int i = 0; i < local_vertex_counts.get()[rank]; ++i){
+      offset = local_vertex_displas.get()[rank];
       (*vertex_label_to_instance_rank)[global_vertex_labels[i + offset]] = rank;
     }
   }
@@ -612,8 +612,6 @@ void parallel_ops::find_nbrs(int global_vertex_count, int local_vertex_count, st
   delete outrank_to_offset_factor;
   delete sendto_rank_to_msgcount_and_destined_labels;
   delete [] global_vertex_labels;
-  delete [] local_vertex_displas;
-  delete [] local_vertex_counts;
   delete label_to_vertex;
 }
 

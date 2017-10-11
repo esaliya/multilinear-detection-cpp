@@ -26,6 +26,8 @@ public:
 
   int my_vertex_displas = 0;
   int my_vertex_count = 0;
+  std::shared_ptr<int> local_vertex_counts = nullptr;
+  std::shared_ptr<int> local_vertex_displas = nullptr;
 
   int world_proc_rank;
   int world_procs_count;

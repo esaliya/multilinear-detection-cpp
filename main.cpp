@@ -100,6 +100,30 @@ int main(int argc, char **argv) {
   is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
   print_rank = 0;
 
+  /* Perf counters */
+  // Get recv buffer count for vertices
+  long perf_my_recv_buffers_count[p_ops->my_vertex_count];
+  long perf_all_recv_buffers_count[global_vertex_count];
+  for (int i = 0; i < (*vertices).size(); ++i){
+    std::shared_ptr<vertex> vertex = (*vertices)[i];
+    perf_my_recv_buffers_count[i] = vertex->recv_buffers->size();
+  }
+
+  MPI_Gatherv(perf_my_recv_buffers_count, p_ops->my_vertex_count, MPI_LONG,
+              perf_all_recv_buffers_count, p_ops->local_vertex_counts.get(), p_ops->local_vertex_displas.get(), MPI_LONG,
+              print_rank, p_ops->MPI_COMM_INSTANCE);
+  std::string perf_str = "PERF: recvbuffer-counts\n";
+  if (is_print_rank){
+    for (int i = 0; i < p_ops->instance_procs_count; ++i){
+      perf_str.append("instance-rank").append(std::to_string(i)).append(" [ ");
+      for (int j = 0; j < p_ops->local_vertex_counts.get()[i]; ++j){
+        perf_str.append(std::to_string(perf_all_recv_buffers_count[p_ops->local_vertex_displas.get()[i]+j])).append(" ");
+      }
+      perf_str.append("]\n");
+    }
+    std::cout<<perf_str;
+  }
+
   run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
