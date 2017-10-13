@@ -105,14 +105,14 @@ public:
       reset(iter, random_assignments);
       end_ticks = hrc_t::now();
       duration = (ms_t(end_ticks - start_ticks)).count();
-//      times_v[0].push_back(duration);
+      times_v[0].push_back(duration);
     } else if (super_step > 0){
       start_ticks = hrc_t::now();
       int field_size = gf->get_field_size();
       reset_super_step();
       running_ticks = hrc_t::now();
       duration = (ms_t(running_ticks - start_ticks)).count();
-//      times_v[2].push_back(duration);
+      times_v[2].push_back(duration);
 
       double tmp_duration = 0.0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
@@ -126,9 +126,9 @@ public:
         tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
       }
       duration = (ms_t(hrc_t::now() - running_ticks)).count();
-//      times_v[3].push_back(duration);
-//      times_v[5].push_back(tmp_duration);
-//      times_v[6].push_back(duration - tmp_duration);
+      times_v[3].push_back(duration);
+      times_v[5].push_back(tmp_duration);
+      times_v[6].push_back(duration - tmp_duration);
 
       running_ticks = hrc_t::now();
       for (int i = 0; i < iter_bs; ++i) {
@@ -136,10 +136,10 @@ public:
       }
       end_ticks = hrc_t::now();
       duration = (ms_t(end_ticks - running_ticks)).count();
-//      times_v[4].push_back(duration);
+      times_v[4].push_back(duration);
 
       duration = (ms_t(end_ticks - start_ticks)).count();
-//      times_v[1].push_back(duration);
+      times_v[1].push_back(duration);
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
