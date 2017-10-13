@@ -650,7 +650,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   for (int j = 0; j < num_items; ++j) {
     std::string times_str = times_str_prefix;
-    times_str.append(".1.3.2.");
+    times_str.append(".1.3.2");
     times_str.append(times_v_names[j]);
     std::string times_str_tmp;
     for (int i = 0; i < times_v_sums[j].size(); ++i) {
