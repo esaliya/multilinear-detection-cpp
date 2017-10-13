@@ -23,7 +23,7 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
 void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter);
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, std::vector<double> *times_all);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
@@ -537,7 +537,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   double send_time_ms = 0;
   double finalize_iter_time_ms = 0;
 
-  std::vector<double> times_all[5];
+  std::vector<double> times_all[8];
   double duration;
 
   ticks_t start_ticks, end_ticks;
@@ -567,7 +567,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
     }
 
     start_ticks = hrc_t::now();
-    compute(global_iter, vertices, ss);
+    compute(global_iter, vertices, ss, times_all);
     end_ticks = hrc_t::now();
     duration = ms_t(end_ticks - start_ticks).count();
     comp_time_ms += duration;
@@ -596,7 +596,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   times[3] += send_time_ms;
   times[4] += finalize_iter_time_ms;
 
-  std::string time_names[5] = {".1.1 Recv", ".1.2 ProcRecv", ".1.3 Comp", ".1.4 Send", ".2 FinIter"};
+  std::string time_names[8] = {".1.1 Recv", ".1.2 ProcRecv", ".1.3 Comp", ".1.4 Send", ".2 FinIter", ".1.3.1 Comp", ".1.3.2 CompNoMem", ".1.3.3 CompMem"};
   for (int j = 0; j < 5; ++j) {
   std::string times_str = times_str_prefix;
   times_str.append(time_names[j]);
@@ -638,11 +638,21 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   print_timing(finalize_iter_time_ms, print_str);
 }
 
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, std::vector<double> *times_all) {
+  ticks_t start_ticks = hrc_t::now();
+  double tmp_duration = 0.0;
+  ticks_t tmp_ticks;
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
+    tmp_ticks = hrc_t::now();
     vertex->compute(super_step, iter, completion_vars, random_assignments);
+    tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
   }
+  ticks_t end_ticks = hrc_t::now();
+  double duration = (ms_t(end_ticks - start_ticks)).count();
+  times_all[5].push_back(duration);
+  times_all[6].push_back(tmp_duration);
+  times_all[7].push_back(duration - tmp_duration);
 }
 
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {

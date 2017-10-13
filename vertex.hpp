@@ -6,13 +6,16 @@
 #define CLIONCPP_VERTEX_HPP
 
 
+#include <iostream>
 #include <map>
 #include <vector>
 #include <random>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
-#include <iostream>
 #include <bitset>
+#include <ratio>
+#include <chrono>
+#include <ctime>
 #include "recv_vertex_buffer.hpp"
 #include "message.hpp"
 #include "galois_field.hpp"
@@ -28,6 +31,8 @@ public:
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
 
+    init_times();
+
     for (int i = 0; i < outnbrs_length; ++i) {
       (*outnbr_lbl_to_instance_rank)[outnbrs[i]] = -1;
     }
@@ -41,6 +46,8 @@ public:
     recv_buffers = new std::vector<std::shared_ptr<recv_vertex_buffer>>();
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
+
+    init_times();
 
     for (int i = 2; i < tokens.size(); ++i){
       (*outnbr_lbl_to_instance_rank)[std::stoi(tokens[i])] = -1;
@@ -72,6 +79,9 @@ public:
     poly_arr = nullptr;
   }
 
+  // vertex times
+  std::vector<std::vector<double>> times_v;
+
   // locally allocated, so no need of shared_ptr
   std::map<int,int>* outnbr_lbl_to_instance_rank = nullptr;
   std::map<int,std::shared_ptr<vertex_buffer>>* outrank_to_send_buffer = nullptr;
@@ -91,22 +101,45 @@ public:
     int I = super_step+1;
     data_idx = I;
     if (super_step == 0){
+      start_ticks = hrc_t::now();
       reset(iter, random_assignments);
+      end_ticks = hrc_t::now();
+      duration = (ms_t(end_ticks - start_ticks)).count();
+      times_v[0].push_back(duration);
     } else if (super_step > 0){
+      start_ticks = hrc_t::now();
       int field_size = gf->get_field_size();
       reset_super_step();
+      running_ticks = hrc_t::now();
+      duration = (ms_t(running_ticks - start_ticks)).count();
+      times_v[2].push_back(duration);
+
+      double tmp_duration = 0.0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
+        ticks_t tmp_ticks = hrc_t::now();
         for (int i = 0; i < iter_bs; ++i) {
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
           product = gf->multiply(weight, product);
           poly_arr[i] = gf->add(poly_arr[i], product);
         }
+        tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
       }
+      duration = (ms_t(hrc_t::now() - running_ticks)).count();
+      times_v[3].push_back(duration);
+      times_v[5].push_back(tmp_duration);
+      times_v[6].push_back(duration - tmp_duration);
 
+      running_ticks = hrc_t::now();
       for (int i = 0; i < iter_bs; ++i) {
         opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
       }
+      end_ticks = hrc_t::now();
+      duration = (ms_t(end_ticks - running_ticks)).count();
+      times_v[4].push_back(duration);
+
+      duration = (ms_t(end_ticks - start_ticks)).count();
+      times_v[1].push_back(duration);
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
@@ -209,6 +242,13 @@ public:
   }
 
 private:
+  typedef std::chrono::duration<double, std::milli> ms_t;
+  typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
+  typedef std::chrono::high_resolution_clock hrc_t;
+
+  ticks_t start_ticks, running_ticks, end_ticks;
+  double duration;
+
   int k;
   int iter_bs; // iteration block size
   int opt_tbl_length;
@@ -222,6 +262,13 @@ private:
   void reset_super_step(){
     for (int i = 0; i < iter_bs; ++i){
       poly_arr[i] = 0;
+    }
+  }
+
+  void init_times(){
+    for (int i = 0; i < 4; ++i){
+      std::vector<double> t;
+      times_v.push_back(t);
     }
   }
 };
