@@ -31,7 +31,7 @@ public:
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
 
-//    init_times();
+    init_times();
 
     for (int i = 0; i < outnbrs_length; ++i) {
       (*outnbr_lbl_to_instance_rank)[outnbrs[i]] = -1;
@@ -47,7 +47,7 @@ public:
     msg = new message();
     recvd_msgs = new std::vector<std::shared_ptr<message>>();
 
-//    init_times();
+    init_times();
 
     for (int i = 2; i < tokens.size(); ++i){
       (*outnbr_lbl_to_instance_rank)[std::stoi(tokens[i])] = -1;
