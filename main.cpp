@@ -597,7 +597,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   times[4] += finalize_iter_time_ms;
 
   std::string time_names[8] = {".1.1 Recv", ".1.2 ProcRecv", ".1.3 Comp", ".1.4 Send", ".2 FinIter", ".1.3.1 Comp", ".1.3.2 CompNoMem", ".1.3.3 CompMem"};
-  for (int j = 0; j < 5; ++j) {
+  for (int j = 0; j < 8; ++j) {
   std::string times_str = times_str_prefix;
   times_str.append(time_names[j]);
   std::string times_str_tmp;
