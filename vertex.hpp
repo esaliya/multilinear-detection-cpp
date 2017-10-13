@@ -105,7 +105,7 @@ public:
       reset(iter, random_assignments);
       end_ticks = hrc_t::now();
       duration = (ms_t(end_ticks - start_ticks)).count();
-//      times_v[0].push_back(duration);
+      times_v[0].push_back(duration);
     } else if (super_step > 0){
       start_ticks = hrc_t::now();
       int field_size = gf->get_field_size();
