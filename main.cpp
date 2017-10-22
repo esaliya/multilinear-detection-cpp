@@ -399,6 +399,7 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
   completion_vars = std::shared_ptr<int>(new int[k - 1](), std::default_delete<int[]>());
 }
 
+int count_comp_call = 0;
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string gap = "    ";
   std::string times_str_prefix = "\nTIMES: 2";
@@ -463,6 +464,13 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     }
   }
   running_ticks = hrc_t::now();
+
+  print_str = gap;
+  print_str.append("CALL_COUNT: ");
+  p_ops->append_timings(count_comp_call, print_rank, print_str);
+  if (is_print_rank){
+    std::cout<<print_str;
+  }
 
   print_str = gap;
   duration = ms_t(running_ticks - iterations_ticks).count();

@@ -20,6 +20,8 @@
 #include "message.hpp"
 #include "galois_field.hpp"
 
+
+extern int count_comp_call;
 class vertex {
 public:
   vertex(int label, double weight, int* outnbrs, int outnbrs_length){
@@ -118,6 +120,7 @@ public:
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         ticks_t tmp_ticks = hrc_t::now();
         for (int i = 0; i < iter_bs; ++i) {
+          count_comp_call++;
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
           product = gf->multiply(weight, product);
