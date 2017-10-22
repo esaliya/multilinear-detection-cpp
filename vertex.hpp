@@ -21,9 +21,10 @@
 #include "galois_field.hpp"
 
 
-extern int count_comp_call;
+
 class vertex {
 public:
+  int count_comp_call = 0;
   vertex(int label, double weight, int* outnbrs, int outnbrs_length){
     this->label = label;
     this->weight = weight;
