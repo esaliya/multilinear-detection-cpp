@@ -61,7 +61,6 @@ void parallel_ops::set_parallel_decomposition(const char *file, const char* part
   MPI_Comm_rank(MPI_COMM_INSTANCE, &instance_proc_rank);
   MPI_Comm_size(MPI_COMM_INSTANCE, &instance_procs_count);
   assert(instance_procs_count == (world_procs_count/pic));
-
   parallel_ops::out_file = out_file;
   if (is_binary){
     simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
@@ -87,16 +86,15 @@ void parallel_ops::simple_graph_partition_file(const char *file, const char* par
   int line_partition = -1;
 
   start = std::chrono::high_resolution_clock::now();
-  int local_idx = 0;
+  //int local_idx = 0;
   for (int i = 0; i < global_vertex_count; ++i) {
     getline(fs, line);
     getline(fs0, partline);
     line_partition = atoi(partline.c_str());
-    std::printf("worldrank %d lines %d line_partition %d\n", world_proc_rank, i, line_partition);
+    //std::printf("worldrank %d instance : %d lines %d line_partition %d\n", world_proc_rank, instance_proc_rank, i, line_partition);
     if(line_partition == instance_proc_rank){
     	boost::split(tokens, line, boost::is_any_of(" "), boost::token_compress_on);
-    	(*vertices)[local_idx] = std::make_shared<vertex>(tokens);
-        local_idx ++;
+	vertices->push_back(std::make_shared<vertex>(tokens));
     }
   }
   end = std::chrono::high_resolution_clock::now();
@@ -106,7 +104,7 @@ void parallel_ops::simple_graph_partition_file(const char *file, const char* par
   fs.close();
 
   start = std::chrono::high_resolution_clock::now();
-  find_nbrs(global_vertex_count, local_idx, vertices);
+  find_nbrs(global_vertex_count, vertices->size(), vertices);
   end = std::chrono::high_resolution_clock::now();
   print_timing(start, end, "simple_graph_partition: find_nbrs total");
 }
