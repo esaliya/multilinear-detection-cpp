@@ -91,7 +91,7 @@ void parallel_ops::simple_graph_partition_file(const char *file, const char* par
   for (int i = 0; i < global_vertex_count; ++i) {
     getline(fs, line);
     getline(fs0, partline);
-    line_partition = atoi(line.c_str());
+    line_partition = atoi(partline.c_str());
     if(line_partition == instance_proc_rank){
     	boost::split(tokens, line, boost::is_any_of(" "), boost::token_compress_on);
     	(*vertices)[local_idx] = std::make_shared<vertex>(tokens);
