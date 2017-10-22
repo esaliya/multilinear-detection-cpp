@@ -8,7 +8,7 @@ find_package(Boost 1.63.0 COMPONENTS program_options REQUIRED)
 
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=c++11 -fopenmp")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -std=gnu++11 -fopenmp")
 
 set(SOURCE_FILES main.cpp parallel_ops.cpp parallel_ops.hpp constants.h constants.cpp vertex.hpp graph.cpp graph.hpp message.hpp vertex_buffer.hpp recv_vertex_buffer.hpp galois_field.hpp galois_field.cpp polynomial.cpp polynomial.hpp polynomials.hpp utils.hpp)
 add_executable(main ${SOURCE_FILES})

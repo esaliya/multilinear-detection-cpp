@@ -92,6 +92,7 @@ void parallel_ops::simple_graph_partition_file(const char *file, const char* par
     getline(fs, line);
     getline(fs0, partline);
     line_partition = atoi(partline.c_str());
+    std::printf("worldrank %d lines %d line_partition %d\n", world_proc_rank, i, line_partition);
     if(line_partition == instance_proc_rank){
     	boost::split(tokens, line, boost::is_any_of(" "), boost::token_compress_on);
     	(*vertices)[local_idx] = std::make_shared<vertex>(tokens);
