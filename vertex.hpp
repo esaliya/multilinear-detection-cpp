@@ -87,7 +87,8 @@ public:
   // The index of data to send for next super step
   int data_idx = 0;
 
-  void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){
+  /*void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){*/
+  void compute(int super_step, int iter, std::shared_ptr<std::map<int, int>> random_assignments){
     int I = super_step+1;
     data_idx = I;
     if (super_step == 0){

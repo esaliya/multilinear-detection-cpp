@@ -6,6 +6,9 @@ const char *PROGRAM_NAME = "MultilinearScan";
 const char *CMD_OPTION_SHORT_VC = "vc";
 const char *CMD_OPTION_DESCRIPTION_VC = "Vertex count";
 
+const char *CMD_OPTION_SHORT_TVC = "tvc";
+const char *CMD_OPTION_DESCRIPTION_TVC = "Template vertex count";
+
 const char *CMD_OPTION_SHORT_EC = "ec";
 const char *CMD_OPTION_DESCRIPTION_EC = "Edge count";
 
@@ -23,6 +26,9 @@ const char *CMD_OPTION_DESCRIPTION_EPSILON = "Epsilon";
 
 const char *CMD_OPTION_SHORT_INPUT = "i";
 const char *CMD_OPTION_DESCRIPTION_INPUT = "Input";
+
+const char *CMD_OPTION_SHORT_TEMPLATE = "t";
+const char *CMD_OPTION_DESCRIPTION_TEMPLATE = "Template file";
 
 const char *CMD_OPTION_SHORT_PARTS = "p";
 const char *CMD_OPTION_DESCRIPTION_PARTS = "Partition file";

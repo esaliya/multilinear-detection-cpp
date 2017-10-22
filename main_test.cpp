@@ -15,12 +15,64 @@
 #include "test_map_class.hpp"
 #include "map_constructor.hpp"
 #include "polynomial.hpp"
+#include "template/template_partitioner.h"
 
 typedef std::chrono::duration<double, std::milli> ms_t;
 typedef std::chrono::duration<double, std::micro> micros_t;
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> ticks_t;
 
 typedef std::chrono::high_resolution_clock hrc_t;
+
+void template_partitioner_test2(){
+  template_partitioner tp("/Users/esaliya/sali/git/ndssl/jose/multilinear-detection/resources/template.txt", 4);
+}
+
+void ref_test2_internal(std::shared_ptr<graph> g){
+//  std::cout<<g->adj_list[0][0]<<"\n";
+//  g->delete_edge(0,1);
+//  std::cout<<g->adj_list[0][0];
+
+}
+void ref_test2(){
+//  std::shared_ptr<graph> g = std::make_shared<graph>();
+//  std::vector<int> vec = {1,2};
+//  g->adj_list[0] = vec;
+//  ref_test2_internal(g);
+
+}
+
+void ref_test_internal(graph &g){
+  g.size = 3;
+  std::vector<graph> vec;
+  vec.push_back(g);
+  graph h = vec[0];
+  vec[0].size = 4;
+  h.size = 5;
+  std::cout<<"g.size"<<g.size<<" vec[0].size"<<vec[0].size<<" h.size"<<h.size<<"\n";
+}
+void ref_test(){
+//  graph g;
+//  ref_test_internal(g);
+}
+
+
+void template_partitioner_test(){
+  /*template_partitioner tp("/Users/esaliya/sali/git/github/esaliya/ccpp/multilinear-detection-cpp-trees/resources/my_little_template.txt", 4);
+  std::map<int, std::vector<int>> adj_list = tp.get_adj_list();
+  std::string print_str="";
+  for (auto it = adj_list.begin(); it != adj_list.end(); ++it){
+    int key = it->first;
+    std::vector<int> val = it->second;
+    print_str = print_str.append(std::to_string(key));
+    print_str.append(" ");
+    std::cout<<"val.size(): "<<val.size();
+    for (int i = 0; i < val.size(); ++i){
+      print_str.append(std::to_string(val[i])).append(" ");
+    }
+    print_str.append("\n");
+  }
+  std::cout<<print_str;*/
+}
 
 void openmp_parfor_test(){
   int size = 16777216;
@@ -571,7 +623,11 @@ void test(){
 }
 
 int main() {
-  openmp_parfor_test();
+  template_partitioner_test2();
+//  ref_test2();
+//  ref_test();
+//  template_partitioner_test();
+//  openmp_parfor_test();
 //  rnd_pointer_test();
 //  int_bitcount();
 //  pass_bind_test();

@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "utils.hpp"
 #include "polynomial.hpp"
+#include "template/template_partitioner.h"
 
 typedef std::chrono::duration<double, std::milli> ms_t;
 typedef std::chrono::duration<double, std::micro> micros_t;
@@ -35,6 +36,7 @@ int log2(int x);
 void print_timing(const double duration,const std::string &msg);
 
 int global_vertex_count;
+int template_vertex_count;
 int global_edge_count;
 int k;
 int r; // not used in k-path problem
@@ -42,6 +44,7 @@ int delta;
 double alpha;
 double epsilon;
 std::string input_file;
+std::string template_file;
 std::string out_file;
 std::string partition_file;
 
@@ -49,7 +52,8 @@ int two_raised_to_k;
 std::shared_ptr<galois_field> gf = nullptr;
 int max_iterations;
 std::shared_ptr<std::map<int,int>> random_assignments = nullptr;
-std::shared_ptr<int> completion_vars = nullptr;
+//std::shared_ptr<int> completion_vars = nullptr;
+std::shared_ptr<template_partitioner> tp = nullptr;
 
 // default values;
 int node_count = 1;
@@ -96,6 +100,8 @@ int main(int argc, char **argv) {
 
   is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
 
+  tp = std::make_shared<template_partitioner>(template_file.c_str(), template_vertex_count);
+
   run_program(vertices);
   delete vertices;
   p_ops->teardown_parallelism();
@@ -114,6 +120,7 @@ int parse_args(int argc, char **argv) {
       (CMD_OPTION_SHORT_ALPHA, po::value<double>(), CMD_OPTION_DESCRIPTION_ALPHA)
       (CMD_OPTION_SHORT_EPSILON, po::value<double>(), CMD_OPTION_DESCRIPTION_EPSILON)
       (CMD_OPTION_SHORT_INPUT, po::value<std::string>(), CMD_OPTION_DESCRIPTION_INPUT)
+      (CMD_OPTION_SHORT_TEMPLATE, po::value<std::string>(), CMD_OPTION_DESCRIPTION_TEMPLATE)
       (CMD_OPTION_SHORT_PARTS, po::value<std::string>(), CMD_OPTION_DESCRIPTION_PARTS)
       (CMD_OPTION_SHORT_NC, po::value<int>(), CMD_OPTION_DESCRIPTION_NC)
       (CMD_OPTION_SHORT_MMS, po::value<int>(), CMD_OPTION_DESCRIPTION_MMS)
@@ -138,6 +145,14 @@ int parse_args(int argc, char **argv) {
   } else {
     if (is_world_rank0)
       std::cout<<"ERROR: Vertex count not specified"<<std::endl;
+    return -1;
+  }
+
+  if (vm.count(CMD_OPTION_SHORT_TVC)){
+    template_vertex_count = vm[CMD_OPTION_SHORT_TVC].as<int>();
+  } else {
+    if (is_world_rank0)
+      std::cout<<"ERROR: Template vertex count not specified"<<std::endl;
     return -1;
   }
 
@@ -186,6 +201,14 @@ int parse_args(int argc, char **argv) {
   }else {
     if (is_world_rank0)
       std::cout<<"ERROR: Input file not specified"<<std::endl;
+    return -1;
+  }
+
+  if (vm.count(CMD_OPTION_SHORT_TEMPLATE)){
+    template_file = vm[CMD_OPTION_SHORT_TEMPLATE].as<std::string>();
+  }else {
+    if (is_world_rank0)
+      std::cout<<"ERROR: Template file not specified"<<std::endl;
     return -1;
   }
 
@@ -273,7 +296,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 
   ticks_t start_loops = std::chrono::high_resolution_clock::now();
-  bool found_path_globally_across_all_instances = false;
+  bool found_tree_globally_across_all_instances = false;
   init_comp(vertices);
 
   // Call parallel ops update count and displas
@@ -287,8 +310,8 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     if (is_print_rank) std::cout<<print_str;
 
     ticks_t start_loop = std::chrono::high_resolution_clock::now();
-    // every rank in the parallel instance knows about found_path_globally_across_all_instances
-    found_path_globally_across_all_instances = run_graph_comp(i, vertices);
+    // every rank in the parallel instance knows about found_tree_globally_across_all_instances
+    found_tree_globally_across_all_instances = run_graph_comp(i, vertices);
 
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
     print_str = "  INFO: End of external loop ";
@@ -296,14 +319,14 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
         append(std::to_string((ms_t(end_loop - start_loop)).count())).append("\n");
     if(is_print_rank) std::cout<<print_str;
 
-    if (found_path_globally_across_all_instances){
+    if (found_tree_globally_across_all_instances){
       break;
     }
   }
 
   ticks_t end_loops = std::chrono::high_resolution_clock::now();
   print_str = "  INFO: Graph ";
-  print_str.append(found_path_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
+  print_str.append(found_tree_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
   print_str.append(std::to_string(k)).append("-path");
   if (is_print_rank) std::cout<<print_str<<std::endl;
 
@@ -325,7 +348,7 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
   two_raised_to_k = 1 << k;
   max_iterations = k - 1;
   random_assignments = std::make_shared<std::map<int,int>>();
-  completion_vars = std::shared_ptr<int>(new int[k-1](), std::default_delete<int[]>());
+//  completion_vars = std::shared_ptr<int>(new int[k-1](), std::default_delete<int[]>());
 }
 
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
@@ -383,13 +406,13 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
       .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
   if(is_print_rank) std::cout<<print_str;
 
-  int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
-  int found_k_path_globally_across_all_instances;
+  int found_k_tree = (finalize_iterations(vertices) ? 1 : 0);
+  int found_k_tree_globally_across_all_instances;
   // MPI_COMM_WORLD is valid here even when running on multiple parallel instances
   // The idea is to see if any of the ranks in whole world has found a path
-  MPI_Allreduce(&found_k_path, &found_k_path_globally_across_all_instances, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&found_k_tree, &found_k_tree_globally_across_all_instances, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-  return found_k_path_globally_across_all_instances > 0;
+  return found_k_tree_globally_across_all_instances > 0;
 }
 
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
@@ -431,9 +454,9 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
     (*random_assignments)[label] = gen_rnd_int();
   }
 
-  for (int i = 0; i < k-1; ++i){
+  /*for (int i = 0; i < k-1; ++i){
     completion_vars.get()[i] = gen_rnd_int();
-  }
+  }*/
 
   for (const std::shared_ptr<vertex> &v : (*vertices)){
     v->init(k, r, gf, iter_bs);
@@ -518,7 +541,8 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
-    vertex->compute(super_step, iter, completion_vars, random_assignments);
+    /*vertex->compute(super_step, iter, completion_vars, random_assignments);*/
+    vertex->compute(super_step, iter, random_assignments);
   }
 }
 

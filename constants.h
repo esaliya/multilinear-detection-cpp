@@ -12,6 +12,9 @@ extern const char *PROGRAM_NAME;
 extern const char *CMD_OPTION_SHORT_VC;
 extern const char *CMD_OPTION_DESCRIPTION_VC;
 
+extern const char *CMD_OPTION_SHORT_TVC;
+extern const char *CMD_OPTION_DESCRIPTION_TVC;
+
 extern const char *CMD_OPTION_SHORT_EC;
 extern const char *CMD_OPTION_DESCRIPTION_EC;
 
@@ -29,6 +32,9 @@ extern const char *CMD_OPTION_DESCRIPTION_EPSILON;
 
 extern const char *CMD_OPTION_SHORT_INPUT;
 extern const char *CMD_OPTION_DESCRIPTION_INPUT;
+
+extern const char *CMD_OPTION_SHORT_TEMPLATE;
+extern const char *CMD_OPTION_DESCRIPTION_TEMPLATE;
 
 extern const char *CMD_OPTION_SHORT_PARTS;
 extern const char *CMD_OPTION_DESCRIPTION_PARTS;
