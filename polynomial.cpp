@@ -7,6 +7,7 @@
 #include <map>
 #include <iostream>
 #include <algorithm>
+#include <functional>
 #include "polynomial.hpp"
 #include "polynomials.hpp"
 

@@ -51,7 +51,7 @@ parallel_ops::parallel_ops(int world_proc_rank, int world_procs_count) :
     world_procs_count(world_procs_count) {
 }
 
-void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file,
+void parallel_ops::set_parallel_decomposition(const char *file, const char* partfile, const char *out_file,
                                               int global_vertx_count, int global_edge_count,
                                               std::vector<std::shared_ptr<vertex>> *&vertices,
                                               int is_binary, int pic) {
@@ -65,9 +65,49 @@ void parallel_ops::set_parallel_decomposition(const char *file, const char *out_
   parallel_ops::out_file = out_file;
   if (is_binary){
     simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
-  } else {
+  } else if(partfile) {
     simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
+  } else {
+    simple_graph_partition_file(file, partfile, global_vertx_count, global_edge_count, vertices);
   }
+}
+
+
+void parallel_ops::simple_graph_partition_file(const char *file, const char* partfile, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
+
+  std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
+  std::ifstream fs0, fs;
+  std::string partline, line;
+  std::vector<std::string> tokens;
+
+  vertices = new std::vector<std::shared_ptr<vertex>>(); 
+  
+  fs0.open(partfile);
+  fs.open(file);
+  int line_partition = -1;
+
+  start = std::chrono::high_resolution_clock::now();
+  int local_idx = 0;
+  for (int i = 0; i < global_vertex_count; ++i) {
+    getline(fs, line);
+    getline(fs0, partline);
+    line_partition = atoi(line.c_str());
+    if(line_partition == instance_proc_rank){
+    	boost::split(tokens, line, boost::is_any_of(" "), boost::token_compress_on);
+    	(*vertices)[local_idx] = std::make_shared<vertex>(tokens);
+        local_idx ++;
+    }
+  }
+  end = std::chrono::high_resolution_clock::now();
+  print_timing(start, end, "simple_graph_partition: graph_read");
+
+  fs0.close();
+  fs.close();
+
+  start = std::chrono::high_resolution_clock::now();
+  find_nbrs(global_vertex_count, local_idx, vertices);
+  end = std::chrono::high_resolution_clock::now();
+  print_timing(start, end, "simple_graph_partition: find_nbrs total");
 }
 
 // NOTE - Old method keep it for now

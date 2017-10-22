@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   }
 
   std::vector<std::shared_ptr<vertex>> *vertices = nullptr;
-  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(),
+  p_ops->set_parallel_decomposition(input_file.c_str(), partition_file.c_str(), out_file.c_str(),
                                     global_vertex_count, global_edge_count,
                                     vertices, is_binary, parallel_instance_count);
 
