@@ -401,6 +401,9 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
 
 double bare_dt = 0.0;
 double rand_dt = 0.0;
+double step1_dt = 0.0;
+double step2_dt = 0.0;
+double step3_dt = 0.0;
 
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices) {
   std::string gap = "    ";
@@ -473,7 +476,8 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     total_call_count += vertex->count_comp_call;
   }
 
-  std::printf("Rank %d CallCount %d bare_dt %lf rand_dt %lf\n", p_ops->world_proc_rank, total_call_count, bare_dt, rand_dt);
+  std::printf("Rank %d CallCount %d bare_dt %lf rand_dt %lf step1_dt %lf step2_dt %lf step3_dt %lf\n",
+              p_ops->world_proc_rank, total_call_count, bare_dt, rand_dt, step1_dt, step2_dt, step3_dt);
   /*print_str = gap;
   print_str.append("CALL_COUNT: ");
   p_ops->append_timings(total_call_count, print_rank, print_str);

@@ -22,6 +22,9 @@
 
 extern double bare_dt;
 extern double rand_dt;
+extern double step1_dt;
+extern double step2_dt;
+extern double step3_dt;
 
 class vertex {
 public:
@@ -125,12 +128,19 @@ public:
           count_comp_call++;
           ticks_t rand_ticks = hrc_t::now();
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+
           ticks_t bare_ticks = hrc_t::now();
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
+          ticks_t step1_ticks = hrc_t::now();
+          step1_dt += (ms_t(step1_ticks - bare_ticks)).count();
           product = gf->multiply(weight, product);
+          ticks_t step2_ticks = hrc_t::now();
+          step2_dt += (ms_t(step2_ticks - step1_ticks)).count();
           poly_arr[i] = gf->add(poly_arr[i], product);
-          bare_dt += (ms_t(hrc_t::now() - bare_ticks)).count();;
-          rand_dt += (ms_t(hrc_t::now() - rand_ticks)).count();
+          ticks_t step3_ticks = hrc_t::now();
+          step3_dt += (ms_t(step3_ticks - step2_ticks)).count();
+          bare_dt += (ms_t(step3_ticks - bare_ticks)).count();
+          rand_dt += (ms_t(step3_ticks - rand_ticks)).count();
 
         }
         //tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
