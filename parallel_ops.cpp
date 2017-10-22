@@ -65,7 +65,7 @@ void parallel_ops::set_parallel_decomposition(const char *file, const char* part
   parallel_ops::out_file = out_file;
   if (is_binary){
     simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
-  } else if(partfile) {
+  } else if(!partfile) {
     simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
   } else {
     simple_graph_partition_file(file, partfile, global_vertx_count, global_edge_count, vertices);
