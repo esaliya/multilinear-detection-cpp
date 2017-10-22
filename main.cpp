@@ -74,7 +74,7 @@ int parallel_instance_count = 1;
 int iter_bs = 1;
 int is_binary = 0;
 
-bool is_print_rank = false;
+//bool is_print_rank = false;
 int print_rank = 0;
 
 parallel_ops *p_ops;
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
                                     global_vertex_count, global_edge_count,
                                     vertices, is_binary, parallel_instance_count);
 
-  is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
+  /*is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);*/
   print_rank = 0;
 
   /* Perf counters */
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
               MPI_LONG,
               print_rank, p_ops->MPI_COMM_INSTANCE);
   std::string perf_str = "PERF: recvbuffer-counts\n";
-  if (is_print_rank) {
+  /*if (is_print_rank) {
     for (int i = 0; i < p_ops->instance_procs_count; ++i) {
       perf_str.append("instance-rank").append(std::to_string(i))
           .append(" vcount")
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
       perf_str.append("]\n");
     }
     std::cout << perf_str;
-  }
+  }*/
 
   run_program(vertices);
   delete vertices;
@@ -301,23 +301,23 @@ int parse_args(int argc, char **argv) {
 void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   ticks_t start_prog = std::chrono::system_clock::now();
   std::time_t start_prog_time = std::chrono::system_clock::to_time_t(start_prog);
-  std::string print_str = "\nINFO: Run program started on ";
+  /*std::string print_str = "\nINFO: Run program started on ";
   print_str.append(std::ctime(&start_prog_time));
   pretty_print_config(print_str);
   if (is_print_rank) {
     std::cout << print_str;
-  }
+  }*/
 
   // get number of iterations for a target error bound (epsilon)
   double prob_success = 0.2;
   int external_loops = (int) round(log(epsilon) / log(1 - prob_success));
 
-  print_str = "  INFO: ";
+ /* print_str = "  INFO: ";
   print_str.append(std::to_string(external_loops)).append(" external loops will be evaluated for epsilon ")
       .append(std::to_string(epsilon)).append("\n");
   if (is_print_rank) {
     std::cout << print_str;
-  }
+  }*/
 
   ticks_t start_loops = std::chrono::high_resolution_clock::now();
   bool found_path_globally_across_all_instances = false;
@@ -329,11 +329,11 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   // TODO - debug - set external_loops to 1
   external_loops = 1;
   for (int i = 0; i < external_loops; ++i) {
-    print_str = "  INFO: Start of external loop ";
+    /*print_str = "  INFO: Start of external loop ";
     print_str.append(std::to_string(i + 1)).append("\n");
     if (is_print_rank) {
       std::cout << print_str;
-    }
+    }*/
 
     // Let's put a world barrier for cleaner timing
     MPI_Barrier(MPI_COMM_WORLD);
@@ -342,18 +342,18 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
     found_path_globally_across_all_instances = run_graph_comp(i, vertices);
 
     ticks_t end_loop = std::chrono::high_resolution_clock::now();
-    print_str = "  INFO: End of external loop ";
+    /*print_str = "  INFO: End of external loop ";*/
     double duration = (ms_t(end_loop - start_loop)).count();
-    print_str.append(std::to_string(i + 1)).append(" duration (ms) ")
-        .append(std::to_string(duration)).append("\n");
+   /* print_str.append(std::to_string(i + 1)).append(" duration (ms) ")
+        .append(std::to_string(duration)).append("\n");*/
 
     std::string times_str = "\nTIMES: 1 ExtLoop ";
     p_ops->append_timings(duration, print_rank, times_str);
 
-    if (is_print_rank) {
+   /* if (is_print_rank) {
       std::cout << print_str;
       std::cout << times_str;
-    }
+    }*/
 
     /* Timings are like this
    * times[0] += recv_time_ms;
@@ -373,23 +373,23 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 
   ticks_t end_loops = std::chrono::high_resolution_clock::now();
-  print_str = "  INFO: Graph ";
+ /* print_str = "  INFO: Graph ";
   print_str.append(found_path_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
   print_str.append(std::to_string(k)).append("-path");
-  if (is_print_rank) std::cout << print_str << std::endl;
+  if (is_print_rank) std::cout << print_str << std::endl;*/
 
-  print_str = "  INFO: External loops total time (ms) ";
+  /*print_str = "  INFO: External loops total time (ms) ";
   print_str.append(std::to_string((ms_t(end_loops - start_loops)).count())).append("\n");
-
+*/
   ticks_t end_prog = std::chrono::high_resolution_clock::now();
   std::time_t end_prog_time = std::chrono::system_clock::to_time_t(end_prog);
 
-  print_str.append("INFO: Run program ended on ");
+ /* print_str.append("INFO: Run program ended on ");
   print_str.append(std::ctime(&end_prog_time));
 
   if (is_print_rank) {
     std::cout << print_str;
-  }
+  }*/
 }
 
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
@@ -413,22 +413,22 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   print_str.append(std::to_string(duration)).append("\n");
 
   std::string times_str = times_str_prefix;
-  times_str.append(".1 InitLoop ");
+ /* times_str.append(".1 InitLoop ");
   p_ops->append_timings(duration, print_rank, times_str);
 
   if (is_print_rank) {
     std::cout << print_str;
     std::cout << times_str;
-  }
+  }*/
 
   // assume twoRaisedToK can be divisible by ParallelOps.parallelInstanceCount
   int iterations_per_parallel_instance = two_raised_to_k / parallel_instance_count;
 
-  print_str = gap;
+  /*print_str = gap;
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" starting [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations").append("\n");
-  if (is_print_rank) std::cout << print_str;
+  if (is_print_rank) std::cout << print_str;*/
 
   ticks_t iterations_ticks = hrc_t::now();
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
@@ -440,11 +440,11 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
     int final_iter = iter + (p_ops->instance_id * iterations_per_parallel_instance);
 
-    print_str = gap;
+    /*print_str = gap;
     print_str.append("  INFO: Starting iterations[[").append(std::to_string(final_iter + 1))
         .append("-").append(std::to_string(final_iter + iter_bs)).append("]/")
         .append(std::to_string(two_raised_to_k)).append("]\n");
-    if (is_print_rank) std::cout << print_str;
+    if (is_print_rank) std::cout << print_str;*/
 
     run_super_steps(vertices, iter, final_iter);
     running_ticks = hrc_t::now();
@@ -453,14 +453,14 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     duration = ms_t(running_ticks - iter_ticks).count();
     times_vec.push_back(duration);
 
-    print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter + 1))
+    /*print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter + 1))
         .append("-").append(std::to_string(final_iter + iter_bs)).append("]")
         .append("/").append(std::to_string(two_raised_to_k))
         .append("] duration (ms) ").append(std::to_string(duration)).append("\n");
 
     if (is_print_rank) {
       std::cout << print_str;
-    }
+    }*/
   }
   running_ticks = hrc_t::now();
 
@@ -469,21 +469,22 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     std::shared_ptr<vertex> vertex = (*vertices)[i];
     total_call_count += vertex->count_comp_call;
   }
-  print_str = gap;
+  std::printf("Rank %d CallCount %d", p_ops->world_proc_rank, total_call_count);
+  /*print_str = gap;
   print_str.append("CALL_COUNT: ");
   p_ops->append_timings(total_call_count, print_rank, print_str);
   if (is_print_rank){
     std::cout<<print_str;
-  }
+  }*/
 
   print_str = gap;
   duration = ms_t(running_ticks - iterations_ticks).count();
-  print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
+  /*print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
-      .append(std::to_string(duration)).append("\n");
+      .append(std::to_string(duration)).append("\n");*/
 
-  times_str = times_str_prefix;
+  /*times_str = times_str_prefix;
   times_str.append(".2.1 Iteration");
   std::string times_str_tmp;
   for (int i = 0; i < times_vec.size(); ++i) {
@@ -497,7 +498,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   if (is_print_rank) {
     std::cout << print_str;
     std::cout << times_str;
-  }
+  }*/
 
   int found_k_path = (finalize_iterations(vertices) ? 1 : 0);
   int found_k_path_globally_across_all_instances;
@@ -625,7 +626,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   times[4] += finalize_iter_time_ms;
 
   // Collect timings from process
-  int num_items = 8;
+ /* int num_items = 8;
   std::string time_names[8] = {".1.1 Recv", ".1.2 ProcRecv", ".1.3 Comp", ".1.4 Send", ".2 FinIter", ".1.3.1 Comp",
                                ".1.3.2 CompNoMem", ".1.3.3 CompMem"};
   for (int j = 0; j < num_items; ++j) {
@@ -673,10 +674,10 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
         std::cout << times_str_tmp;
       }
     }
-  }
+  }*/
 
 
-  gap.append("-- Iter ").append(std::to_string(global_iter + 1));
+  /*gap.append("-- Iter ").append(std::to_string(global_iter + 1));
 
   std::string print_str = gap;
   print_str.append(" comp:");
@@ -700,7 +701,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   print_str = gap;
   print_str.append(" finalize iter:");
-  print_timing(finalize_iter_time_ms, print_str);
+  print_timing(finalize_iter_time_ms, print_str);*/
 }
 
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, std::vector<double> *times_all) {
@@ -780,27 +781,27 @@ int log2(int x) {
 void print_timing(
     const double duration_ms,
     const std::string &msg) {
-  double avg_duration_ms, min_duration_ms, max_duration_ms;
+  /*double avg_duration_ms, min_duration_ms, max_duration_ms;
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, p_ops->MPI_COMM_INSTANCE);
   if (is_print_rank) {
     std::cout << msg << " [min max avg]ms: [" << min_duration_ms
               << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" << std::endl;
-  }
+  }*/
 }
 
 void print_timing_global(
     const double duration_ms,
     const std::string &msg) {
-  double avg_duration_ms, min_duration_ms, max_duration_ms;
+  /*double avg_duration_ms, min_duration_ms, max_duration_ms;
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   if (is_print_rank) {
     std::cout << msg << " global[min max avg]ms: [" << min_duration_ms
               << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->world_procs_count) << "]" << std::endl;
-  }
+  }*/
 }
 
 
