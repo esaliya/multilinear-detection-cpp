@@ -20,7 +20,8 @@
 #include "message.hpp"
 #include "galois_field.hpp"
 
-
+extern double bare_dt;
+extern double rand_dt;
 
 class vertex {
 public:
@@ -119,15 +120,20 @@ public:
 
       double tmp_duration = 0.0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
-        ticks_t tmp_ticks = hrc_t::now();
+        //ticks_t tmp_ticks = hrc_t::now();
         for (int i = 0; i < iter_bs; ++i) {
           count_comp_call++;
+          ticks_t rand_ticks = hrc_t::now();
           int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+          ticks_t bare_ticks = hrc_t::now();
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
           product = gf->multiply(weight, product);
           poly_arr[i] = gf->add(poly_arr[i], product);
+          bare_dt += (ms_t(hrc_t::now() - bare_ticks)).count();;
+          rand_dt += (ms_t(hrc_t::now() - rand_ticks)).count();
+
         }
-        tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
+        //tmp_duration += (ms_t(hrc_t::now() - tmp_ticks)).count();
       }
       duration = (ms_t(hrc_t::now() - running_ticks)).count();
       times_v[3].push_back(duration);
