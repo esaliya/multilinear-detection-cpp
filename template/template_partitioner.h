@@ -74,10 +74,12 @@ public:
   }
 
 
-  std::vector<std::pair<int,int>> get_subtemplates(){
-    std::vector<std::pair<int,int>> v;
-    return v;
-//    return sub_templates;
+  std::shared_ptr<std::vector<std::shared_ptr<graph>>> get_sub_templates(){
+    return sub_templates;
+  }
+
+  int get_sub_template_count(){
+    return (int) sub_templates->size();
   }
 
 private:

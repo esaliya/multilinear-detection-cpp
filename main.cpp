@@ -459,7 +459,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }*/
 
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    v->init(k, r, gf, iter_bs);
+    v->init(k, r, gf, iter_bs, tp);
   }
 }
 

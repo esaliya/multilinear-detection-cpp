@@ -16,6 +16,7 @@
 #include "recv_vertex_buffer.hpp"
 #include "message.hpp"
 #include "galois_field.hpp"
+#include "template/template_partitioner.h"
 
 class vertex {
 public:
@@ -154,16 +155,17 @@ public:
     }
   }
 
-  void init(int k , int r, std::shared_ptr<galois_field> gf, int iter_bs){
+  void init(int k, int r, std::shared_ptr<galois_field> gf, int iter_bs, std::shared_ptr<template_partitioner> tp) {
     this->k = k;
     this->gf = gf;
     this->iter_bs = iter_bs;
     // opt_table now contains entries for iter_bs iterations
-    // elements i of each iteration are kept near
-    // i.e. opt_tbl[0,(iter_bs-1)] are idx 0 values for iter_bs iterations
+    // all elements of a single iter_bs are kept near
+    // i.e. opt_tbl[0,(tp->get_sub_template_count()-1)] are values
+    // for each sub_template of iter_bs 0
     // other indices follow the same rule
-    opt_tbl_length = (k+1)*iter_bs;
-    opt_tbl = std::shared_ptr<short>(new short[(k+1)*iter_bs](), std::default_delete<short[]>());
+    opt_tbl_length = (tp->get_sub_template_count())*iter_bs;
+    opt_tbl = std::shared_ptr<short>(new short[(tp->get_sub_template_count())*iter_bs](), std::default_delete<short[]>());
     poly_arr = new int[iter_bs];
   }
 
@@ -214,7 +216,7 @@ private:
   int iter_bs; // iteration block size
   int opt_tbl_length;
   std::shared_ptr<galois_field> gf;
-  std::shared_ptr<short> opt_tbl = nullptr;
+//  std::shared_ptr<short> opt_tbl = nullptr;
   short total_sum;
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;
