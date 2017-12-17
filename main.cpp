@@ -565,6 +565,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
+/* This gets invoked 2^k*N1/NN2 */
 void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter) {
   std::string gap = "      ";
   std::string times_str_prefix = "\nTIMES: 3";
@@ -581,6 +582,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   int worker_steps = max_iterations + 1;
 
+  /* worker_steps == k */
   for (int ss = 0; ss < worker_steps; ++ss) {
     if (ss > 0) {
       start_ticks = hrc_t::now();

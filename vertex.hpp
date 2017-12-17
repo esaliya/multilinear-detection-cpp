@@ -124,6 +124,7 @@ public:
       double tmp_duration = 0.0;
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         //ticks_t tmp_ticks = hrc_t::now();
+        /* iter_bs == N2 */
         for (int i = 0; i < iter_bs; ++i) {
           count_comp_call++;
           ticks_t rand_ticks = hrc_t::now();
@@ -132,9 +133,11 @@ public:
           ticks_t bare_ticks = hrc_t::now();
           int product = gf->multiply(opt_tbl.get()[1*iter_bs+i], msg->get(i));
           ticks_t step1_ticks = hrc_t::now();
+
           step1_dt += (ms_t(step1_ticks - bare_ticks)).count();
           product = gf->multiply(weight, product);
           ticks_t step2_ticks = hrc_t::now();
+
           step2_dt += (ms_t(step2_ticks - step1_ticks)).count();
           poly_arr[i] = gf->add(poly_arr[i], product);
           ticks_t step3_ticks = hrc_t::now();

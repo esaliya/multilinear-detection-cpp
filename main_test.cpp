@@ -571,7 +571,7 @@ void test(){
 }
 
 int main() {
-  openmp_parfor_test();
+//  openmp_parfor_test();
 //  rnd_pointer_test();
 //  int_bitcount();
 //  pass_bind_test();
@@ -604,7 +604,7 @@ int main() {
 //  test_method_for_map();
 //  test_string();
 //  test_rand();
-//  test_array();
+  test_array();
 //  test_map();
 //  test();
 
