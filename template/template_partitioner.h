@@ -20,6 +20,7 @@ public:
   template_partitioner(const char *template_file, int template_vertex_count) {
     root_template = std::make_shared<graph>(id_count);
     sub_templates = std::make_shared<std::vector<std::shared_ptr<graph>>>();
+    sub_template_id_to_idx = std::make_shared<std::map<int,int>>();
     left_child = std::make_shared<std::map<int, std::shared_ptr<graph>>>();
     right_child = std::make_shared<std::map<int, std::shared_ptr<graph>>>();
 
@@ -45,10 +46,14 @@ public:
                 return g1->size < g2->size;
               });
 
+    for (int i = 0; i < sub_templates->size(); ++i){
+      (*sub_template_id_to_idx)[(*sub_templates)[i]->id] = i;
+    }
+
     // Note verification code
-    /*for (const std::shared_ptr<graph> &s : *sub_templates){
-      std::cout<<s->id<<" "<<s->size<<"\n";
-    }*/
+    for (const std::shared_ptr<graph> &s : *sub_templates){
+      std::cout<<"id: "<<s->id<<" size: "<<s->size<<" idx: "<<(*sub_template_id_to_idx)[s->id]<<"\n";
+    }
   }
 
   void gen_sub_templates(std::shared_ptr<graph> sub_template){
@@ -73,6 +78,13 @@ public:
     gen_sub_templates(right);
   }
 
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> get_left_child(){
+    return left_child;
+  }
+
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> get_right_child(){
+    return right_child;
+  }
 
   std::shared_ptr<std::vector<std::shared_ptr<graph>>> get_sub_templates(){
     return sub_templates;
@@ -86,6 +98,7 @@ private:
   int id_count = 0;
   std::shared_ptr<graph> root_template = nullptr;
   std::shared_ptr<std::vector<std::shared_ptr<graph>>> sub_templates = nullptr;
+  std::shared_ptr<std::map<int, int>> sub_template_id_to_idx = nullptr;
   std::shared_ptr<std::map<int, std::shared_ptr<graph>>> left_child = nullptr;
   std::shared_ptr<std::map<int, std::shared_ptr<graph>>> right_child = nullptr;
 

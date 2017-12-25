@@ -88,14 +88,22 @@ public:
   // The index of data to send for next super step
   int data_idx = 0;
 
-  /*void compute(int super_step, int iter, std::shared_ptr<int> completion_vars, std::shared_ptr<std::map<int, int>> random_assignments){*/
-  void compute(int super_step, int iter, std::shared_ptr<std::map<int, int>> random_assignments){
-    int I = super_step+1;
-    data_idx = I;
+  /* Return comm_on */
+  bool compute(int super_step, int iter, std::shared_ptr<std::map<int, int>> random_assignments){
+    bool comm_on = false;
+    int I = super_step-1;
     if (super_step == 0){
       reset(iter, random_assignments);
     } else if (super_step > 0){
-      int field_size = gf->get_field_size();
+      /* set comm_on if next sub template size is > 1 */
+      int next_st_idx = I+1;
+      if ((*sub_templates)[next_st_idx]->size > 1) {
+
+      }
+
+      // TODO fix data_idx
+      data_idx = I;
+      /*int field_size = gf->get_field_size();
       reset_super_step();
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         for (int i = 0; i < iter_bs; ++i) {
@@ -108,7 +116,7 @@ public:
 
       for (int i = 0; i < iter_bs; ++i) {
         opt_tbl.get()[I*iter_bs+i] = (short) poly_arr[i];
-      }
+      }*/
     }
     // TODO - dummy comp - list recvd messages
 //    std::shared_ptr<short> data = std::shared_ptr<short>(new short[1](), std::default_delete<short[]>());
@@ -133,6 +141,7 @@ public:
       str.append("] ss=").append(std::to_string(super_step)).append("\n");
       std::cout<<str;
     }*/
+    return comm_on;
   }
 
   int prepare_send(int super_step){
@@ -155,17 +164,21 @@ public:
     }
   }
 
-  void init(int k, int r, std::shared_ptr<galois_field> gf, int iter_bs, std::shared_ptr<template_partitioner> tp) {
-    this->k = k;
+  void init(std::shared_ptr<galois_field> gf, int iter_bs, std::shared_ptr<template_partitioner> tp) {
+    sub_tc = tp->get_sub_template_count();
+    sub_templates = tp->get_sub_templates();
+    left_map = tp->get_left_child();
+    right_map = tp->get_right_child();
+
     this->gf = gf;
     this->iter_bs = iter_bs;
     // opt_table now contains entries for iter_bs iterations
-    // all elements of a single iter_bs are kept near
-    // i.e. opt_tbl[0,(tp->get_sub_template_count()-1)] are values
-    // for each sub_template of iter_bs 0
+    // elements i of each iteration are kept near
+    // i.e. opt_tbl[0,(iter_bs-1)] are idx 0 values for iter_bs iterations
     // other indices follow the same rule
-    opt_tbl_length = (tp->get_sub_template_count())*iter_bs;
-    opt_tbl = std::shared_ptr<short>(new short[(tp->get_sub_template_count())*iter_bs](), std::default_delete<short[]>());
+    opt_tbl_length = sub_tc*iter_bs;
+    opt_tbl = std::shared_ptr<short>(new short[sub_tc*iter_bs](), std::default_delete<short[]>());
+    msg->set_data_and_msg_size(opt_tbl, iter_bs);
     poly_arr = new int[iter_bs];
   }
 
@@ -188,22 +201,18 @@ public:
       opt_tbl.get()[i] = 0;
     }
 
-    for (int i = 0; i < iter_bs; ++i) {
+    /*for (int i = 0; i < iter_bs; ++i) {
       // dot product is bitwise 'and'
       int dot_product = (*random_assignments)[label] & (iter+i);
       std::bitset<sizeof(int) * 8> bs((unsigned int) dot_product);
       int eigen_val = (bs.count() % 2 == 1) ? 0 : 1;
       opt_tbl.get()[1*iter_bs+i] = (short) eigen_val;
-    }
-
-    msg->set_data_and_msg_size(opt_tbl, iter_bs);
-    // NOTE - let's not use this, see above
-//    msg->set_data_and_msg_size(opt_tbl, (k+1));
+    }*/
   }
 
   void finalize_iteration(){
     for (int i = 0; i < iter_bs; ++i) {
-      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[k*iter_bs+i]);
+      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[sub_tc*iter_bs+i]);
     }
   }
 
@@ -212,11 +221,14 @@ public:
   }
 
 private:
-  int k;
+  int sub_tc;
+  std::shared_ptr<std::vector<std::shared_ptr<graph>>> sub_templates;
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> left_map;
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> right_map;
   int iter_bs; // iteration block size
   int opt_tbl_length;
   std::shared_ptr<galois_field> gf;
-//  std::shared_ptr<short> opt_tbl = nullptr;
+  std::shared_ptr<short> opt_tbl = nullptr;
   short total_sum;
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;

@@ -9,12 +9,6 @@ const char *CMD_OPTION_DESCRIPTION_VC = "Vertex count";
 const char *CMD_OPTION_SHORT_TVC = "tvc";
 const char *CMD_OPTION_DESCRIPTION_TVC = "Template vertex count";
 
-const char *CMD_OPTION_SHORT_EC = "ec";
-const char *CMD_OPTION_DESCRIPTION_EC = "Edge count";
-
-const char *CMD_OPTION_SHORT_K = "k";
-const char *CMD_OPTION_DESCRIPTION_K = "Motif size";
-
 const char *CMD_OPTION_SHORT_DELTA = "d";
 const char *CMD_OPTION_DESCRIPTION_DELTA = "Delta";
 

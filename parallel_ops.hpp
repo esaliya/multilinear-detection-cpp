@@ -42,7 +42,8 @@ public:
   ~parallel_ops();
 
   void teardown_parallelism();
-  void set_parallel_decomposition(const char* file, const char *out_file, int global_vertx_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary, int pic);
+  void set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count,
+                                    std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary, int pic);
   void update_counts_and_displas(int msg_size);
   void all_to_all_v();
 
@@ -74,8 +75,10 @@ private:
 
   parallel_ops(int world_proc_rank, int world_procs_count);
 
-  void simple_graph_partition(const char* file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
-  void simple_graph_partition_binary(const char* file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices);
+  void simple_graph_partition(const char *file, int global_vertex_count,
+                                std::vector<std::shared_ptr<vertex>> *&vertices);
+  void simple_graph_partition_binary(const char *file, int global_vertex_count,
+                                       std::vector<std::shared_ptr<vertex>> *&vertices);
   long read_vertices(std::vector<std::shared_ptr<vertex>> *vertices, int skip_vertex_count, std::ifstream &fs, long header_extent, long data_offset,
                      long data_extent, int *vertex_nbr_length, int *out_nbrs, long read_extent, int read_vertex, int i);
   void find_nbrs(int global_vertex_count, int local_vertex_count, std::vector<std::shared_ptr<vertex>> *&vertices);

@@ -24,7 +24,7 @@ void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
 void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter);
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, bool &comm_on);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
@@ -39,7 +39,6 @@ int global_vertex_count;
 int template_vertex_count;
 int global_edge_count;
 int k;
-int r; // not used in k-path problem
 int delta;
 double alpha;
 double epsilon;
@@ -48,6 +47,7 @@ std::string template_file;
 std::string out_file;
 std::string partition_file;
 
+int stc=0;
 int two_raised_to_k;
 std::shared_ptr<galois_field> gf = nullptr;
 int max_iterations;
@@ -94,13 +94,13 @@ int main(int argc, char **argv) {
   }
 
   std::vector<std::shared_ptr<vertex>> *vertices = nullptr;
-  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(),
-                                    global_vertex_count, global_edge_count,
-                                    vertices, is_binary, parallel_instance_count);
+  p_ops->set_parallel_decomposition(input_file.c_str(), out_file.c_str(), global_vertex_count, vertices, is_binary,
+                                    parallel_instance_count);
 
   is_print_rank = (p_ops->instance_id == 0 && p_ops->instance_proc_rank == 0);
 
   tp = std::make_shared<template_partitioner>(template_file.c_str(), template_vertex_count);
+  stc = tp->get_sub_template_count();
 
   run_program(vertices);
   delete vertices;
@@ -114,8 +114,7 @@ int parse_args(int argc, char **argv) {
   desc.add_options()
       ("help", "produce help message")
       (CMD_OPTION_SHORT_VC, po::value<int>(), CMD_OPTION_DESCRIPTION_VC)
-      (CMD_OPTION_SHORT_EC, po::value<int>(), CMD_OPTION_DESCRIPTION_EC)
-      (CMD_OPTION_SHORT_K, po::value<int>(), CMD_OPTION_DESCRIPTION_K)
+      (CMD_OPTION_SHORT_TVC, po::value<int>(), CMD_OPTION_DESCRIPTION_TVC)
       (CMD_OPTION_SHORT_DELTA, po::value<int>(), CMD_OPTION_DESCRIPTION_DELTA)
       (CMD_OPTION_SHORT_ALPHA, po::value<double>(), CMD_OPTION_DESCRIPTION_ALPHA)
       (CMD_OPTION_SHORT_EPSILON, po::value<double>(), CMD_OPTION_DESCRIPTION_EPSILON)
@@ -150,25 +149,10 @@ int parse_args(int argc, char **argv) {
 
   if (vm.count(CMD_OPTION_SHORT_TVC)){
     template_vertex_count = vm[CMD_OPTION_SHORT_TVC].as<int>();
+    k = template_vertex_count;
   } else {
     if (is_world_rank0)
       std::cout<<"ERROR: Template vertex count not specified"<<std::endl;
-    return -1;
-  }
-
-  if (vm.count(CMD_OPTION_SHORT_EC)){
-    global_edge_count = vm[CMD_OPTION_SHORT_EC].as<int>();
-  } else {
-    if (is_world_rank0)
-      std::cout<<"INFO: Edge count not specified, ignoring edge count"<<std::endl;
-    global_edge_count = -1;
-  }
-
-  if(vm.count(CMD_OPTION_SHORT_K)){
-    k = vm[CMD_OPTION_SHORT_K].as<int>();
-  } else {
-    if (is_world_rank0)
-      std::cout<<"ERROR: K is not specified"<<std::endl;
     return -1;
   }
 
@@ -346,7 +330,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
 
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices) {
   two_raised_to_k = 1 << k;
-  max_iterations = k - 1;
+  max_iterations = stc;
   random_assignments = std::make_shared<std::map<int,int>>();
 //  completion_vars = std::shared_ptr<int>(new int[k-1](), std::default_delete<int[]>());
 }
@@ -459,7 +443,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }*/
 
   for (const std::shared_ptr<vertex> &v : (*vertices)){
-    v->init(k, r, gf, iter_bs, tp);
+    v->init(gf, iter_bs, tp);
   }
 }
 
@@ -475,8 +459,14 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   int worker_steps = max_iterations + 1;
 
+  // K-Tree is a bit different from other
+  // codes because communication is necessary
+  // only if next computation is on a subtemplate
+  // with size > 1. Therefore, let's use a flag.
+
+  bool comm_on = false;
   for (int ss = 0; ss < worker_steps; ++ss){
-    if (ss > 0){
+    if (ss > 0 && comm_on){
       start_ticks = hrc_t::now();
       recv_msgs(vertices, ss);
       end_ticks = hrc_t::now();
@@ -494,11 +484,11 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
     }
 
     start_ticks = hrc_t::now();
-    compute(global_iter, vertices, ss);
+    compute(global_iter, vertices, ss, comm_on);
     end_ticks = hrc_t::now();
     comp_time_ms += ms_t(end_ticks - start_ticks).count();
 
-    if (ss< worker_steps - 1){
+    if (ss< worker_steps - 1 && comm_on){
       start_ticks = hrc_t::now();
       send_msgs(vertices, ss);
       end_ticks = hrc_t::now();
@@ -538,11 +528,11 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   print_timing(finalize_iter_time_ms, print_str);
 }
 
-void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step) {
+void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, bool &comm_on) {
   for (int i = 0; i < (*vertices).size(); ++i){
     std::shared_ptr<vertex> vertex = (*vertices)[i];
-    /*vertex->compute(super_step, iter, completion_vars, random_assignments);*/
-    vertex->compute(super_step, iter, random_assignments);
+    // Every vertex will return the same comm_on value
+    comm_on = vertex->compute(super_step, iter, random_assignments);
   }
 }
 

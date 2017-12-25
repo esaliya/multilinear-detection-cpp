@@ -1,0 +1,30 @@
+--vc
+7
+--tvc
+4
+--d
+1
+--a
+0.15
+--e
+0.1
+--i
+"/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/resources/my_little_graph_simple.txt"
+--t
+"/Users/esaliya/sali/git/github/esaliya/ccpp/multilinear-detection-cpp-trees/resources/my_little_template.txt"
+--nc
+1
+--out
+"/Users/esaliya/sali/git/github/esaliya/ccpp/CppStack/clioncpp/resources/out.txt"
+--ibs
+2
+
+
+
+id: 3 size: 1 idx: 0
+id: 4 size: 1 idx: 1
+id: 5 size: 1 idx: 2
+id: 6 size: 1 idx: 3
+id: 1 size: 2 idx: 4
+id: 2 size: 2 idx: 5
+id: 0 size: 4 idx: 6

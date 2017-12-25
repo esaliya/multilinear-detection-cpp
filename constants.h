@@ -15,12 +15,6 @@ extern const char *CMD_OPTION_DESCRIPTION_VC;
 extern const char *CMD_OPTION_SHORT_TVC;
 extern const char *CMD_OPTION_DESCRIPTION_TVC;
 
-extern const char *CMD_OPTION_SHORT_EC;
-extern const char *CMD_OPTION_DESCRIPTION_EC;
-
-extern const char *CMD_OPTION_SHORT_K;
-extern const char *CMD_OPTION_DESCRIPTION_K;
-
 extern const char *CMD_OPTION_SHORT_DELTA;
 extern const char *CMD_OPTION_DESCRIPTION_DELTA;
 

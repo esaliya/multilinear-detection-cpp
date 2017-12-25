@@ -51,10 +51,8 @@ parallel_ops::parallel_ops(int world_proc_rank, int world_procs_count) :
     world_procs_count(world_procs_count) {
 }
 
-void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file,
-                                              int global_vertx_count, int global_edge_count,
-                                              std::vector<std::shared_ptr<vertex>> *&vertices,
-                                              int is_binary, int pic) {
+void parallel_ops::set_parallel_decomposition(const char *file, const char *out_file, int global_vertx_count,
+                                              std::vector<std::shared_ptr<vertex>> *&vertices, int is_binary, int pic) {
   /* Decompose world into pic instances */
   instance_id = world_proc_rank / (world_procs_count/pic);
   MPI_Comm_split(MPI_COMM_WORLD, instance_id, world_proc_rank, &MPI_COMM_INSTANCE);
@@ -64,14 +62,15 @@ void parallel_ops::set_parallel_decomposition(const char *file, const char *out_
 
   parallel_ops::out_file = out_file;
   if (is_binary){
-    simple_graph_partition_binary(file, global_vertx_count, global_edge_count, vertices);
+    simple_graph_partition_binary(file, global_vertx_count, vertices);
   } else {
-    simple_graph_partition(file, global_vertx_count, global_edge_count, vertices);
+    simple_graph_partition(file, global_vertx_count, vertices);
   }
 }
 
 // NOTE - Old method keep it for now
-void parallel_ops::simple_graph_partition(const char *file, int global_vertex_count, int global_edge_count, std::vector<std::shared_ptr<vertex>> *&vertices) {
+void parallel_ops::simple_graph_partition(const char *file, int global_vertex_count,
+                                          std::vector<std::shared_ptr<vertex>> *&vertices) {
   std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
 
   int q = global_vertex_count/instance_procs_count;
@@ -662,7 +661,7 @@ void parallel_ops::all_to_all_v() {
   MPI_Alltoallv(sbuff.get(), scounts, sdisplas, MPI_SHORT, rbuff.get(), rcounts, rdisplas, MPI_SHORT, MPI_COMM_INSTANCE);
 }
 
-void parallel_ops::simple_graph_partition_binary(const char *file, int global_vertex_count, int global_edge_count,
+void parallel_ops::simple_graph_partition_binary(const char *file, int global_vertex_count,
                                                  std::vector<std::shared_ptr<vertex>> *&vertices) {
   std::chrono::time_point<std::chrono::high_resolution_clock > start, end;
   start = std::chrono::high_resolution_clock::now();
