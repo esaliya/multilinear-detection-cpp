@@ -90,6 +90,10 @@ public:
     return sub_templates;
   }
 
+  std::shared_ptr<std::map<int, int>> get_sub_template_id_to_idx(){
+    return sub_template_id_to_idx;
+  }
+
   int get_sub_template_count(){
     return (int) sub_templates->size();
   }

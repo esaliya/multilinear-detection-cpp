@@ -69,8 +69,6 @@ public:
     uni_int_dist = nullptr;
     delete [] rnd_engine;
     rnd_engine = nullptr;
-    delete [] poly_arr;
-    poly_arr = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
@@ -98,11 +96,32 @@ public:
       /* set comm_on if next sub template size is > 1 */
       int next_st_idx = I+1;
       if ((*sub_templates)[next_st_idx]->size > 1) {
-
+        comm_on = true;
+        int next_st_right_child_id = (*right_map)[(*sub_templates)[next_st_idx]->id]->id;
+        data_idx = (*sub_template_id_to_idx)[next_st_right_child_id];
       }
 
-      // TODO fix data_idx
-      data_idx = I;
+      if ((*sub_templates)[I]->size == 1){
+        for (int i = 0; i < iter_bs; ++i){
+          // dot product is bitwise 'and'
+          int dot_product = (*random_assignments)[label] & (iter+i);
+          std::bitset<sizeof(int) * 8> bs((unsigned int) dot_product);
+          int init_val = (bs.count() % 2 == 1) ? 0 : 1;
+          opt_tbl.get()[I*iter_bs+i] = (short) init_val;
+        }
+      } else {
+        for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
+          for (int i = 0; i < iter_bs; ++i) {
+            int left_child_id = (*left_map)[(*sub_templates)[I]->id]->id;
+            int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+            int product = gf->multiply(opt_tbl.get()[left_child_id*iter_bs+i], msg->get(i));
+            product = gf->multiply(weight, product);
+            opt_tbl.get()[((*sub_templates)[I]->id)*iter_bs+i]
+                = (short)(gf->add(opt_tbl.get()[((*sub_templates)[I]->id)*iter_bs+i], product));
+          }
+        }
+      }
+
       /*int field_size = gf->get_field_size();
       reset_super_step();
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
@@ -169,6 +188,7 @@ public:
     sub_templates = tp->get_sub_templates();
     left_map = tp->get_left_child();
     right_map = tp->get_right_child();
+    sub_template_id_to_idx = tp->get_sub_template_id_to_idx();
 
     this->gf = gf;
     this->iter_bs = iter_bs;
@@ -179,7 +199,7 @@ public:
     opt_tbl_length = sub_tc*iter_bs;
     opt_tbl = std::shared_ptr<short>(new short[sub_tc*iter_bs](), std::default_delete<short[]>());
     msg->set_data_and_msg_size(opt_tbl, iter_bs);
-    poly_arr = new int[iter_bs];
+    total_sum = 0;
   }
 
   void reset(int iter, std::shared_ptr<std::map<int,int>> random_assignments){
@@ -211,20 +231,27 @@ public:
   }
 
   void finalize_iteration(){
+    // We can do this because gf->add is both commutative and associative
+    // Also, we assume 2^k iterations is divisible by iter_bs
     for (int i = 0; i < iter_bs; ++i) {
-      total_sum = (short) (*gf).add(total_sum, opt_tbl.get()[sub_tc*iter_bs+i]);
+      // Note, it'll be the same weight that's generated for all iter_bs iterations
+      int weight = (*uni_int_dist[i])(*rnd_engine[i]);
+      // the index of (sub_tc-1) is the index of the root template
+      int product = gf->multiply(weight, opt_tbl.get()[(sub_tc-1)*iter_bs+i]);
+      total_sum = (short) (*gf).add(total_sum, product);
     }
   }
 
-  bool finalize_iterations(){
-    return total_sum > 0;
+  short finalize_iterations(){
+    return total_sum;
   }
 
 private:
   int sub_tc;
-  std::shared_ptr<std::vector<std::shared_ptr<graph>>> sub_templates;
-  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> left_map;
-  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> right_map;
+  std::shared_ptr<std::vector<std::shared_ptr<graph>>> sub_templates = nullptr;
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> left_map = nullptr;
+  std::shared_ptr<std::map<int, std::shared_ptr<graph>>> right_map = nullptr;
+  std::shared_ptr<std::map<int, int>> sub_template_id_to_idx = nullptr;
   int iter_bs; // iteration block size
   int opt_tbl_length;
   std::shared_ptr<galois_field> gf;
@@ -232,13 +259,6 @@ private:
   short total_sum;
   std::uniform_int_distribution<int>** uni_int_dist = nullptr;
   std::default_random_engine** rnd_engine = nullptr;
-
-  int *poly_arr = nullptr;
-  void reset_super_step(){
-    for (int i = 0; i < iter_bs; ++i){
-      poly_arr[i] = 0;
-    }
-  }
 };
 
 

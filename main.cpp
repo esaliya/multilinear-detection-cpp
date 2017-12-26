@@ -29,7 +29,7 @@ void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void send_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices);
-bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
+short finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 
 void pretty_print_config(std::string &str);
 int log2(int x);
@@ -390,13 +390,13 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
       .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
   if(is_print_rank) std::cout<<print_str;
 
-  int found_k_tree = (finalize_iterations(vertices) ? 1 : 0);
-  int found_k_tree_globally_across_all_instances;
+  short proc_sum = finalize_iterations(vertices);
+  short global_sum = 0;
   // MPI_COMM_WORLD is valid here even when running on multiple parallel instances
-  // The idea is to see if any of the ranks in whole world has found a path
-  MPI_Allreduce(&found_k_tree, &found_k_tree_globally_across_all_instances, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  // The idea is to gf->add all proc_sum values. gf->add is bitwise xor, so we'll use MPI_BXOR
+  MPI_Allreduce(&proc_sum, &global_sum, 1, MPI_SHORT, MPI_BXOR, MPI_COMM_WORLD);
 
-  return found_k_tree_globally_across_all_instances > 0;
+  return global_sum > 0;
 }
 
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
@@ -561,16 +561,14 @@ void finalize_iteration(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
-bool finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices) {
-  // Note, we can't break the loop after finding on true
+short finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices) {
+  // Note, we can't break the loop after finding one true
   // because the finalize_iterations() need to be called on all vertices
-  bool found_k_path = false;
+  short sum = 0;
   for (const auto &v : (*vertices)) {
-    if (v->finalize_iterations()) {
-      found_k_path = true;
-    }
+    sum = (short)gf->add(sum, v->finalize_iterations());
   }
-  return found_k_path;
+  return sum;
 }
 
 void pretty_print_config(std::string &str){
