@@ -114,15 +114,17 @@ public:
           for (int i = 0; i < iter_bs; ++i) {
             int left_child_id = (*left_map)[(*sub_templates)[I]->id]->id;
             int weight = (*uni_int_dist[i])(*rnd_engine[i]);
-            int product = gf->multiply(opt_tbl.get()[left_child_id*iter_bs+i], msg->get(i));
+            short y = msg->get(i);
+            int product = gf->multiply(opt_tbl.get()[((*sub_template_id_to_idx)[left_child_id]) * iter_bs + i], y);
             product = gf->multiply(weight, product);
-            opt_tbl.get()[((*sub_templates)[I]->id)*iter_bs+i]
-                = (short)(gf->add(opt_tbl.get()[((*sub_templates)[I]->id)*iter_bs+i], product));
+            opt_tbl.get()[I*iter_bs+i]
+                = (short)(gf->add(opt_tbl.get()[I*iter_bs+i], product));
           }
         }
       }
 
-      /*int field_size = gf->get_field_size();
+      /*KPath code
+       * int field_size = gf->get_field_size();
       reset_super_step();
       for (const std::shared_ptr<message> &msg : (*recvd_msgs)){
         for (int i = 0; i < iter_bs; ++i) {

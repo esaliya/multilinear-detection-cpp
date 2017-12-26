@@ -465,6 +465,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   // with size > 1. Therefore, let's use a flag.
 
   bool comm_on = false;
+  bool recv_processed = false;
   for (int ss = 0; ss < worker_steps; ++ss){
     if (ss > 0 && comm_on){
       start_ticks = hrc_t::now();
@@ -476,8 +477,9 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
       /* Assuming message size doesn't change with
        * iterations and super steps we can do this process received once
        * and be done with it */
-      if (local_iter == 0 && ss < 2) {
+      if (comm_on && !recv_processed) {
         process_recvd_msgs(vertices, ss);
+        recv_processed = true;
       }
       end_ticks = hrc_t::now();
       process_recvd_time_ms += ms_t(end_ticks - start_ticks).count();
