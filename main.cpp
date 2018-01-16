@@ -311,7 +311,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices) {
   ticks_t end_loops = std::chrono::high_resolution_clock::now();
   print_str = "  INFO: Graph ";
   print_str.append(found_tree_globally_across_all_instances ? "contains " : "does not contain ").append("a ");
-  print_str.append(std::to_string(k)).append("-path");
+  print_str.append(std::to_string(k)).append("-tree");
   if (is_print_rank) std::cout<<print_str<<std::endl;
 
   print_str = "  INFO: External loops total time (ms) ";
