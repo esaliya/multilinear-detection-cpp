@@ -59,16 +59,18 @@ public:
     msg = nullptr;
     delete recvd_msgs;
     recvd_msgs = nullptr;
-    for (int i = 0; i < iter_bs; ++i) {
-      delete uni_int_dist[i];
-      uni_int_dist[i] = nullptr;
-      delete rnd_engine[i];
-      rnd_engine[i] = nullptr;
+    if (uni_int_dist != nullptr) {
+      for (int i = 0; i < iter_bs; ++i) {
+        delete uni_int_dist[i];
+        uni_int_dist[i] = nullptr;
+        delete rnd_engine[i];
+        rnd_engine[i] = nullptr;
+      }
+      delete[] uni_int_dist;
+      uni_int_dist = nullptr;
+      delete [] rnd_engine;
+      rnd_engine = nullptr;
     }
-    delete [] uni_int_dist;
-    uni_int_dist = nullptr;
-    delete [] rnd_engine;
-    rnd_engine = nullptr;
   }
 
   // locally allocated, so no need of shared_ptr
@@ -95,7 +97,7 @@ public:
     } else if (super_step > 0){
       /* set comm_on if next sub template size is > 1 */
       int next_st_idx = I+1;
-      if ((*sub_templates)[next_st_idx]->size > 1) {
+      if (next_st_idx < sub_tc && (*sub_templates)[next_st_idx]->size > 1) {
         comm_on = true;
         int next_st_right_child_id = (*right_map)[(*sub_templates)[next_st_idx]->id]->id;
         data_idx = (*sub_template_id_to_idx)[next_st_right_child_id];
@@ -122,6 +124,7 @@ public:
           }
         }
       }
+
 
       /*KPath code
        * int field_size = gf->get_field_size();
@@ -233,6 +236,7 @@ public:
   }
 
   void finalize_iteration(){
+    assert(uni_int_dist != nullptr && rnd_engine != nullptr);
     // We can do this because gf->add is both commutative and associative
     // Also, we assume 2^k iterations is divisible by iter_bs
     for (int i = 0; i < iter_bs; ++i) {
