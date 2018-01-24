@@ -110,32 +110,19 @@ public:
           std::bitset<sizeof(int) * 8> bs((unsigned int) dot_product);
           int init_val = (bs.count() % 2 == 1) ? 0 : 1;
           opt_tbl.get()[I*iter_bs+i] = (short) init_val;
-          // TODO - debug - correctness
-          std::cout<<"|-- giter="<<iter+i<< " vid="<<label<<" ss="<<super_step<<" i=" << i << " init_val=" << init_val<<"\n";
         }
       } else {
-        // TODO - debug - correctness
-        int msg_count = 0;
         for (const std::shared_ptr<message> &msg : (*recvd_msgs)) {
-          msg_count++;
           for (int i = 0; i < iter_bs; ++i) {
             int left_child_id = (*left_map)[(*sub_templates)[I]->id]->id;
             int weight = (*uni_int_dist[i])(*rnd_engine[i]);
             short y = msg->get(i);
-            // TODO - debug - correctness
             short opt_lc = opt_tbl.get()[((*sub_template_id_to_idx)[left_child_id]) * iter_bs + i];
             int product = gf->multiply(opt_lc, y);
             product = gf->multiply(weight, product);
-            // TODO - debug - correctness
 
             short opt_I = opt_tbl.get()[I * iter_bs + i];
-            std::cout<<"|++ giter="<<iter+i<< " vid="<<label<<" msgcount="<<msg_count
-                     <<" ss="<<super_step<<" i=" << i << " weight=" << weight
-                     <<" y(msg)="<<y<<" opt_lc="<<opt_lc<<" opt_I="<<opt_I<<"\n";
-            opt_tbl.get()[I * iter_bs + i]
-                = (short)(gf->add(opt_I, product));
-            /*opt_tbl.get()[I*iter_bs+i]
-                = (short)(gf->add(opt_tbl.get()[I*iter_bs+i], product));*/
+            opt_tbl.get()[I * iter_bs + i] = (short)(gf->add(opt_I, product));
           }
         }
       }
@@ -259,8 +246,6 @@ public:
       int weight = (*uni_int_dist[i])(*rnd_engine[i]);
       // the index of (sub_tc-1) is the index of the root template
       int product = gf->multiply(weight, opt_tbl.get()[(sub_tc-1)*iter_bs+i]);
-      // TODO - debug correctness
-//      std::cout << "i="<<i<<" val="<<opt_tbl.get()[(sub_tc-1)*iter_bs+i]<<" w="<<weight<<" prod="<<product<<"\n";
       total_sum = (short) (*gf).add(total_sum, product);
     }
   }
