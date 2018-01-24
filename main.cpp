@@ -368,17 +368,21 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     print_str.append("  INFO: Starting iterations[[").append(std::to_string(final_iter+1))
         .append("-").append(std::to_string(final_iter+iter_bs)).append("]/")
         .append(std::to_string(two_raised_to_k)).append("]\n");
-    if (is_print_rank) std::cout<<print_str;
 
+    // TODO - debug uncomment after testing
+//    if (is_print_rank) std::cout<<print_str;
+
+    // run_super_steps is the equivalent of evaluateCircuit in serial Java code
     run_super_steps(vertices, iter, final_iter);
     running_ticks = hrc_t::now();
 
+    // TODO - debug uncomment after testing
     print_str = gap;
     print_str.append("  INFO: Iterations range [[").append(std::to_string(final_iter+1))
         .append("-").append(std::to_string(final_iter+iter_bs)).append("]")
         .append("/").append(std::to_string(two_raised_to_k))
         .append("] duration (ms) ").append(std::to_string(ms_t(running_ticks - iter_ticks).count())).append("\n");
-    if (is_print_rank) std::cout<<print_str;
+//    if (is_print_rank) std::cout<<print_str;
   }
   running_ticks = hrc_t::now();
 
@@ -390,6 +394,8 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   if(is_print_rank) std::cout<<print_str;
 
   short proc_sum = finalize_iterations(vertices);
+  // TODO - debug correctness
+  std::cout << "##" << proc_sum << '\n';
   short global_sum = 0;
   // MPI_COMM_WORLD is valid here even when running on multiple parallel instances
   // The idea is to gf->add all proc_sum values. gf->add is bitwise xor, so we'll use MPI_BXOR
@@ -399,7 +405,9 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
 }
 
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
-  long long per_loop_random_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  // TODO - debug corretness
+//  long long per_loop_random_seed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  long long per_loop_random_seed = 1234598765;
   // MPI_COMM_WORLD is correct here even when running multiple parallel instances
   MPI_Bcast(&per_loop_random_seed, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 
@@ -502,6 +510,8 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
   end_ticks = hrc_t::now();
   finalize_iter_time_ms += ms_t(end_ticks - start_ticks).count();
 
+  // TODO - debug - uncomment after testing
+  /*
   gap.append("-- Iter ").append(std::to_string(global_iter+1));
 
   std::string print_str = gap;
@@ -526,7 +536,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   print_str = gap;
   print_str.append(" finalize iter:");
-  print_timing(finalize_iter_time_ms, print_str);
+  print_timing(finalize_iter_time_ms, print_str);*/
 }
 
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, bool &comm_on) {
