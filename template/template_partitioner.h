@@ -112,7 +112,7 @@ private:
     std::set<int> remaining = g->nodes;
 
     while(seen.size() < g->size){
-      std::cout<<"seen.size"<<seen.size()<<" g.size"<<g->size<<"\n";
+//      std::cout<<"seen.size"<<seen.size()<<" g.size"<<g->size<<"\n";
       std::shared_ptr<std::set<int>> comp = std::make_shared<std::set<int>>();
       int u = *remaining.begin();
       comp->insert(u);
