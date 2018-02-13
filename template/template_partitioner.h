@@ -51,9 +51,9 @@ public:
     }
 
     // Note verification code
-    for (const std::shared_ptr<graph> &s : *sub_templates){
+    /*for (const std::shared_ptr<graph> &s : *sub_templates){
       std::cout<<"id: "<<s->id<<" size: "<<s->size<<" idx: "<<(*sub_template_id_to_idx)[s->id]<<"\n";
-    }
+    }*/
   }
 
   void gen_sub_templates(std::shared_ptr<graph> sub_template){

@@ -269,7 +269,6 @@ bool polynomial::get_reducibility_ben_or() {
 }
 
 std::ostream &operator<<(std::ostream &out_strm, const polynomial &p) {
-  out_strm << "size: " << p.degrees->size() << " [ ";
   for (const long &v : (*p.degrees)){
      out_strm << v << " ";
   }
