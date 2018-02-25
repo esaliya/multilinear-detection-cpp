@@ -1,0 +1,18 @@
+INFO: Run program started on Tue Jan 16 00:15:59 2018
+  INFO: 10 external loops will be evaluated for epsilon 0.100000
+  INFO: Start of external loop 1
+    INFO: Init loop duration (ms) 0.568000
+    INFO: Parallel instance 0 starting [16/16] iterations
+      INFO: Starting iterations[[1-2]/16]
+Assertion failed: ((*sub_templates)[next_st_idx] != nullptr), function compute, file /Users/esaliya/sali/git/github/esaliya/ccpp/multilinear-detection-cpp-trees/vertex.hpp, line 101.
+
+===================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   PID 63132 RUNNING AT esaliya-mbp
+=   EXIT CODE: 6
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+===================================================================================
+YOUR APPLICATION TERMINATED WITH THE EXIT STRING: Abort trap: 6 (signal 6)
+This typically refers to a problem with your application.
+Please see the FAQ page for debugging suggestions
