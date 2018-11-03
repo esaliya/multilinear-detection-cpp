@@ -9,6 +9,7 @@
 #include <set>
 #include <vector>
 #include <memory>
+#include <functional>
 
 typedef bool (*rev_comp_t)(const long&, const long&);
 
