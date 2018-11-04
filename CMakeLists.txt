@@ -4,7 +4,7 @@ project(clioncpp)
 
 find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(Boost 1.63.0 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.63 COMPONENTS program_options REQUIRED)
 
 
 
@@ -26,6 +26,11 @@ if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+if (MPI_FOUND)
+    include_directories(${MPI_INCLUDE_PATH})
+    target_link_libraries(main ${MPI_LIBRARIES})
 endif()
 
 #set(SOURCE_FILES main_test.cpp test_map_class.cpp test_map_class.hpp map_constructor.cpp map_constructor.hpp polynomial.cpp polynomial.hpp template/graph.cpp template/graph.h template/template_partitioner.h)

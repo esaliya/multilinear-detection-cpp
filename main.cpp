@@ -33,7 +33,8 @@ short finalize_iterations(std::vector<std::shared_ptr<vertex>> *vertices);
 
 void pretty_print_config(std::string &str);
 int log2(int x);
-void print_timing(const double duration,const std::string &msg);
+void print_timing(double duration,const std::string &msg);
+void print_timing(double duration, const std::string &msg, double &max_time);
 
 int global_vertex_count;
 int template_vertex_count;
@@ -359,6 +360,8 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   // Assume iterations_per_parallel_instance is a multiple of iter_bs
   assert(iterations_per_parallel_instance % iter_bs == 0);
 
+  double comp_time = 0.0;
+  double comm_time = 0.0;
   for (int iter = 0; iter < iterations_per_parallel_instance; iter += iter_bs){
 
     ticks_t iter_ticks = std::chrono::high_resolution_clock::now();
@@ -372,7 +375,7 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
     if (is_print_rank) std::cout<<print_str;
 
     // run_super_steps is the equivalent of evaluateCircuit in serial Java code
-    run_super_steps(vertices, iter, final_iter);
+    run_super_steps(vertices, iter, final_iter, comp_time, comm_time);
     running_ticks = hrc_t::now();
 
     print_str = gap;
@@ -388,7 +391,9 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
-      .append(std::to_string(ms_t(running_ticks - iterations_ticks).count())).append("\n");
+      .append(std::to_string(ms_t(running_ticks - iterations_ticks).count()))
+      .append(" sum max comp (ms) ").append(std::to_string(comp_time))
+      .append(" sum max comm (ms) ").append(std::to_string(comm_time)).append("\n");
   if(is_print_rank) std::cout<<print_str;
 
   short proc_sum = finalize_iterations(vertices);
@@ -448,7 +453,7 @@ void init_loop(std::vector<std::shared_ptr<vertex>> *vertices) {
   }
 }
 
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter) {
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter, double &comp_time, double &comm_time) {
   std::string gap = "      ";
   double process_recvd_time_ms = 0;
   double recv_time_ms = 0;
@@ -508,7 +513,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   std::string print_str = gap;
   print_str.append(" comp:");
-  print_timing(comp_time_ms, print_str);
+  print_timing(comp_time_ms, print_str, comp_time);
 
   print_str = gap;
   print_str.append(" process recvd:");
@@ -516,7 +521,7 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   print_str = gap;
   print_str.append(" recv:");
-  print_timing(recv_time_ms, print_str);
+  print_timing(recv_time_ms, print_str, comm_time);
 
   print_str = gap;
   print_str.append(" recv total:");
@@ -595,11 +600,21 @@ int log2(int x) {
 
 void print_timing(
     const double duration_ms,
-    const std::string &msg) {
+    const std::string &msg
+    ){
+  double max_time=0.0;
+  print_timing(duration_ms, msg, max_time);
+
+}
+
+void print_timing(
+    const double duration_ms,
+    const std::string &msg, double &max_time) {
   double avg_duration_ms, min_duration_ms, max_duration_ms;
   MPI_Reduce(&duration_ms, &min_duration_ms, 1, MPI_DOUBLE, MPI_MIN, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &max_duration_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
   MPI_Reduce(&duration_ms, &avg_duration_ms, 1, MPI_DOUBLE, MPI_SUM, 0, p_ops->MPI_COMM_INSTANCE);
+  max_time += max_duration_ms;
   if (is_print_rank){
     std::cout<<msg<<" [min max avg]ms: ["<< min_duration_ms
              << " " << max_duration_ms << " " << (avg_duration_ms / p_ops->instance_procs_count) << "]" <<std::endl;
