@@ -23,7 +23,7 @@ void run_program(std::vector<std::shared_ptr<vertex>> *vertices);
 void init_comp(std::vector<std::shared_ptr<vertex>> *vertices);
 bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices);
 void init_loop(std::vector<std::shared_ptr<vertex>> *vertices);
-void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter);
+void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_iter, int global_iter, double &comp_time, double &comm_time);
 void compute(int iter, std::vector<std::shared_ptr<vertex>> *vertices, int super_step, bool &comm_on);
 void recv_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
 void process_recvd_msgs(std::vector<std::shared_ptr<vertex>> *vertices, int super_step);
