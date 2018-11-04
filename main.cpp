@@ -388,10 +388,14 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
   running_ticks = hrc_t::now();
 
   print_str = gap;
+  double iter_ms = ms_t(running_ticks - iterations_ticks).count();
+  double max_iter_ms;
+  MPI_Reduce(&iter_ms, &max_iter_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
+
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
-      .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms)")
-      .append(std::to_string(ms_t(running_ticks - iterations_ticks).count()))
+      .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms) ")
+      .append(std::to_string(iter_ms)).append(" max duration (ms) ").append(std::to_string(max_iter_ms))
       .append(" sum max comp (ms) ").append(std::to_string(comp_time))
       .append(" sum max comm (ms) ").append(std::to_string(comm_time)).append("\n");
   if(is_print_rank) std::cout<<print_str;
