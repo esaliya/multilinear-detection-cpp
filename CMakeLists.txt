@@ -39,6 +39,6 @@ endif()
 set(SOURCE_FILES main_omp.cpp)
 add_executable(main_omp ${SOURCE_FILES})
 
-set(SOURCE_FILES metis_converter.cpp)
-add_executable(metis_converter ${SOURCE_FILES})
+#set(SOURCE_FILES metis_converter.cpp)
+#add_executable(metis_converter ${SOURCE_FILES})
 
