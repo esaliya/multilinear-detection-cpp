@@ -389,15 +389,13 @@ bool run_graph_comp(int loop_id, std::vector<std::shared_ptr<vertex>> *vertices)
 
   print_str = gap;
   double iter_ms = ms_t(running_ticks - iterations_ticks).count();
-  double max_iter_ms;
-  MPI_Reduce(&iter_ms, &max_iter_ms, 1, MPI_DOUBLE, MPI_MAX, 0, p_ops->MPI_COMM_INSTANCE);
 
   print_str.append("INFO: Parallel instance ").append(std::to_string(p_ops->instance_id))
       .append(" ended [").append(std::to_string(iterations_per_parallel_instance))
       .append("/").append(std::to_string(two_raised_to_k)).append("] iterations, duration (ms) ")
-      .append(std::to_string(iter_ms)).append(" max duration (ms) ").append(std::to_string(max_iter_ms))
-      .append(" sum max comp (ms) ").append(std::to_string(comp_time))
-      .append(" sum max comm (ms) ").append(std::to_string(comm_time)).append("\n");
+      .append(std::to_string(iter_ms))
+      .append(" comp (ms) ").append(std::to_string(comp_time))
+      .append(" comm (ms) ").append(std::to_string(comm_time)).append("\n");
   if(is_print_rank) std::cout<<print_str;
 
   short proc_sum = finalize_iterations(vertices);
@@ -517,7 +515,8 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   std::string print_str = gap;
   print_str.append(" comp:");
-  print_timing(comp_time_ms, print_str, comp_time);
+  comp_time += comp_time_ms;
+  print_timing(comp_time_ms, print_str);
 
   print_str = gap;
   print_str.append(" process recvd:");
@@ -525,7 +524,8 @@ void run_super_steps(std::vector<std::shared_ptr<vertex>> *vertices, int local_i
 
   print_str = gap;
   print_str.append(" recv:");
-  print_timing(recv_time_ms, print_str, comm_time);
+  comm_time +=recv_time_ms;
+  print_timing(recv_time_ms, print_str);
 
   print_str = gap;
   print_str.append(" recv total:");
